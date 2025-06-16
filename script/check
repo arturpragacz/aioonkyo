@@ -1,0 +1,8 @@
+#!/bin/sh
+
+__dir="$(cd "$(dirname "$0")" && pwd)"
+
+set -x
+
+${__dir}/lint
+mypy

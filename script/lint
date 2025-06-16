@@ -1,0 +1,10 @@
+#!/bin/sh
+
+set -e
+set -x
+
+ruff format --check
+ruff format --check --preview
+
+ruff check
+ruff check --preview
