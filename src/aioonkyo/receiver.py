@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncGenerator, Generator
-from contextlib import asynccontextmanager, contextmanager
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from enum import Enum
 import logging
@@ -114,47 +114,39 @@ async def async_discover(
 InfoT = TypeVar("InfoT", bound=BasicReceiverInfo, default=ReceiverInfo)
 
 
-@contextmanager
-def _yield_receiver(receiver: Receiver[InfoT]) -> Generator[Receiver[InfoT]]:
-    """Connect to the receiver."""
-    try:
-        yield receiver
-    finally:
-        receiver.close()
-
-
-@asynccontextmanager
-async def _async_connect(info: InfoT) -> AsyncGenerator[Receiver[InfoT]]:
-    """Connect to the receiver."""
-    receiver = await Receiver.open_connection(info)
-    with _yield_receiver(receiver) as receiver:
-        yield receiver
-
-
-@asynccontextmanager
-async def _async_connect_retry(info: InfoT) -> AsyncGenerator[Receiver[InfoT]]:
+async def _async_connect_receiver_retry(info: InfoT) -> Receiver[InfoT]:
     """Connect to the receiver, retrying on failure."""
     sleep_time = 10
     sleep_time_max = 180
     while True:
         try:
-            receiver = await Receiver.open_connection(info)
+            return await Receiver.open_connection(info)
         except OSError:
             await asyncio.sleep(sleep_time)
             sleep_time = min(sleep_time * 2, sleep_time_max)
-        else:
-            break
-    with _yield_receiver(receiver) as receiver:
-        yield receiver
 
 
 @asynccontextmanager
-async def async_connect(info: InfoT, *, retry: bool = False) -> AsyncGenerator[Receiver[InfoT]]:
+async def async_connect(
+    info: InfoT, *, retry: bool = False, run: bool = True
+) -> AsyncGenerator[Receiver[InfoT]]:
     """Connect to the receiver."""
-    _LOGGER.debug("Async context manager connect (retry: %s): %s", retry, info)
-    connect = _async_connect_retry if retry else _async_connect
-    async with connect(info) as receiver:
-        yield receiver
+    _LOGGER.debug("Async context manager connect (retry: %s, run: %s): %s", retry, run, info)
+
+    if retry:
+        receiver = await _async_connect_receiver_retry(info)
+    else:
+        receiver = await Receiver.open_connection(info)
+
+    try:
+        if run:
+            async with asyncio.TaskGroup() as tg:
+                tg.create_task(receiver.run())
+                yield receiver
+        else:
+            yield receiver
+    finally:
+        receiver.close()
 
 
 class _ReceiverState(Enum):
