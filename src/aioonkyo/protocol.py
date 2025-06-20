@@ -21,12 +21,8 @@ from .status import DiscoveryStatus, NotAvailableStatus, RawStatus, Status, stat
 _LOGGER = logging.getLogger(__name__)
 
 
-class ParseMode(Enum):
-    """Parse mode."""
-
-    ISCP = auto()
-    EISCP = auto()
-    DISCOVERY = auto()
+class OnkyoConnectionError(OnkyoError):
+    """Onkyo connection error."""
 
 
 class OnkyoParsingError(OnkyoError):
@@ -37,8 +33,12 @@ class OnkyoStreamRecoverableError(OnkyoError):
     """Onkyo stream recoverable error."""
 
 
-class OnkyoConnectionError(OnkyoError):
-    """Onkyo connection error."""
+class ParseMode(Enum):
+    """Parse mode."""
+
+    ISCP = auto()
+    EISCP = auto()
+    DISCOVERY = auto()
 
 
 @dataclass
@@ -358,7 +358,7 @@ async def read_messages(
     while True:
         try:
             packet = await EISCPPacket.parse_status_read(reader)
-        except OSError as exc:
+        except (OSError, EOFError) as exc:
             raise OnkyoConnectionError(f"{exc!r}") from None
         except OnkyoStreamRecoverableError as exc:
             _LOGGER.error("Invalid response: %s(%s)", type(exc).__name__, exc)
