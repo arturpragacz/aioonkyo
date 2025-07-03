@@ -27,7 +27,7 @@ _LOGGER = logging.getLogger(__name__)
 BROADCAST_ADDRESS: Final = "255.255.255.255"
 
 
-async def async_interview(
+async def interview(
     host: str,
     *,
     port: int = 60128,
@@ -67,7 +67,7 @@ async def async_interview(
     return receiver_info
 
 
-async def async_discover(
+async def discover(
     address: str = BROADCAST_ADDRESS,
     *,
     port: int = 60128,
@@ -114,7 +114,7 @@ async def async_discover(
 InfoT = TypeVar("InfoT", bound=BasicReceiverInfo, default=ReceiverInfo)
 
 
-async def _async_connect_receiver_retry(info: InfoT) -> Receiver[InfoT]:
+async def _connect_receiver_retry(info: InfoT) -> Receiver[InfoT]:
     """Connect to the receiver, retrying on failure."""
     sleep_time = 10
     sleep_time_max = 180
@@ -127,14 +127,14 @@ async def _async_connect_receiver_retry(info: InfoT) -> Receiver[InfoT]:
 
 
 @asynccontextmanager
-async def async_connect(
+async def connect(
     info: InfoT, *, retry: bool = False, run: bool = True
 ) -> AsyncGenerator[Receiver[InfoT]]:
     """Connect to the receiver."""
     _LOGGER.debug("Async context manager connect (retry: %s, run: %s): %s", retry, run, info)
 
     if retry:
-        receiver = await _async_connect_receiver_retry(info)
+        receiver = await _connect_receiver_retry(info)
     else:
         receiver = await Receiver.open_connection(info)
 
@@ -237,8 +237,8 @@ class BasicReceiver(Receiver[BasicReceiverInfo]):
 
 
 __all__ = [
-    "async_interview",
-    "async_discover",
-    "async_connect",
+    "interview",
+    "discover",
+    "connect",
     "Receiver",
 ]
