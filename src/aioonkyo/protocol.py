@@ -11,7 +11,7 @@ import logging
 import struct
 from typing import ClassVar, Self
 
-from .common import BasicReceiverInfo, OnkyoError
+from .common import OnkyoError
 from .instruction import DiscoveryQuery, Instruction
 from .message import Message
 from .message_code import Code
@@ -381,26 +381,6 @@ async def write_message(writer: asyncio.StreamWriter, message: Instruction) -> N
         await writer.drain()
     except OSError as exc:
         raise OnkyoConnectionError(f"{exc!r}") from None
-
-
-async def read_messages(
-    reader: asyncio.StreamReader, queue: asyncio.Queue[Status], info: BasicReceiverInfo
-) -> None:
-    """Read messages."""
-    while True:
-        message = await read_message(reader)
-        _LOGGER.debug("[%s]   << %s", info.host, message)
-        await queue.put(message)
-
-
-async def write_messages(
-    writer: asyncio.StreamWriter, queue: asyncio.Queue[Instruction], info: BasicReceiverInfo
-) -> None:
-    """Write messages."""
-    while True:
-        message = await queue.get()
-        await write_message(writer, message)
-        _LOGGER.debug("[%s] >>>> %s", info.host, message)
 
 
 @dataclass(kw_only=True)

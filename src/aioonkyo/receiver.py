@@ -5,10 +5,10 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 import logging
-from typing import Final, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, Final, Generic, Self, TypeVar
 
 from .common import BasicReceiverInfo, ReceiverInfo
 from .instruction import Instruction
@@ -17,9 +17,7 @@ from .protocol import (
     EISCPDiscovery,
     OnkyoConnectionError,
     read_message,
-    read_messages,
     write_message,
-    write_messages,
 )
 from .status import Status
 
@@ -168,6 +166,8 @@ class Receiver(Generic[InfoT]):
     info: InfoT
     _reader: asyncio.StreamReader
     _writer: asyncio.StreamWriter
+    _read_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
+    _write_lock: asyncio.Lock = field(default_factory=asyncio.Lock)
     _read_queue: asyncio.Queue[Status] | None = None
     _write_queue: asyncio.Queue[Instruction] | None = None
     _state: _ReceiverState = _ReceiverState.CONNECTED
@@ -195,13 +195,35 @@ class Receiver(Generic[InfoT]):
 
         try:
             async with asyncio.TaskGroup() as tg:
-                tg.create_task(read_messages(self._reader, self._read_queue, self.info))
-                tg.create_task(write_messages(self._writer, self._write_queue, self.info))
+                tg.create_task(self._read_messages())
+                tg.create_task(self._write_messages())
         except* OnkyoConnectionError as exc:
             _LOGGER.warning("Disconnect detected (%s): %s", exc.exceptions, self.info)
         finally:
             _LOGGER.debug("Run queue ending: %s", self.info)
             self._do_close()
+
+    async def _read_messages(self) -> None:
+        """Read messages."""
+        queue = self._read_queue
+        if TYPE_CHECKING:
+            assert queue is not None
+        async with self._read_lock:
+            while True:
+                message = await read_message(self._reader)
+                _LOGGER.debug("[%s]   << %s", self.info.host, message)
+                await queue.put(message)
+
+    async def _write_messages(self) -> None:
+        """Write messages."""
+        queue = self._write_queue
+        if TYPE_CHECKING:
+            assert queue is not None
+        async with self._write_lock:
+            while True:
+                message = await queue.get()
+                await write_message(self._writer, message)
+                _LOGGER.debug("[%s] >>>> %s", self.info.host, message)
 
     async def read(self) -> Status | None:
         """Read from the receiver."""
@@ -209,14 +231,15 @@ class Receiver(Generic[InfoT]):
             return None
 
         if self._read_queue is None:
-            try:
-                message = await read_message(self._reader)
-            except OnkyoConnectionError as exc:
-                self._disconnect_from_read_write(exc)
-                return None
-            except Exception as exc:
-                self._disconnect_from_read_write(exc)
-                raise
+            async with self._read_lock:
+                try:
+                    message = await read_message(self._reader)
+                except OnkyoConnectionError as exc:
+                    self._disconnect_from_read_write(exc)
+                    return None
+                except Exception as exc:
+                    self._disconnect_from_read_write(exc)
+                    raise
         else:
             try:
                 message = await self._read_queue.get()
@@ -232,12 +255,13 @@ class Receiver(Generic[InfoT]):
             raise RuntimeError(f"Write called on receiver in CLOSED state, info: {self.info}")
 
         if self._write_queue is None:
-            try:
-                await write_message(self._writer, message)
-            except Exception as exc:
-                self._disconnect_from_read_write(exc)
-                raise
-            _LOGGER.debug("[%s] >>>> %s", self.info.host, message)
+            async with self._write_lock:
+                try:
+                    await write_message(self._writer, message)
+                except Exception as exc:
+                    self._disconnect_from_read_write(exc)
+                    raise
+                _LOGGER.debug("[%s] >>>> %s", self.info.host, message)
         else:
             _LOGGER.debug("[%s] >>   %s", self.info.host, message)
             self._write_queue.put_nowait(message)
