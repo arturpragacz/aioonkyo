@@ -215,8 +215,8 @@ class FLDisplayStatus(_KnownStatus):
         0x09: "↓",
         0x0A: "←",
         0x0B: "→",
-        # 0x12: "D",  # "⏵"?
-        # 0x13: "D",  # "⏵"?
+        0x12: "◗",  # Dolby Logo Left
+        0x13: "◖",  # Dolby Logo Right
         # 0x14: "Ⅱ",  # "⏸"?
         # 0x15: "Ω",  # "⏹"?
         0x1A: "⏵",
