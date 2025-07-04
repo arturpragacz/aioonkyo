@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import logging
 from typing import Final, Generic, Self, TypeVar
@@ -16,7 +16,9 @@ from .protocol import (
     DiscoveryInfo,
     EISCPDiscovery,
     OnkyoConnectionError,
+    read_message,
     read_messages,
+    write_message,
     write_messages,
 )
 from .status import Status
@@ -128,10 +130,12 @@ async def _connect_receiver_retry(info: InfoT) -> Receiver[InfoT]:
 
 @asynccontextmanager
 async def connect(
-    info: InfoT, *, retry: bool = False, run: bool = True
+    info: InfoT, *, retry: bool = False, run_queue: bool = False
 ) -> AsyncGenerator[Receiver[InfoT]]:
     """Connect to the receiver."""
-    _LOGGER.debug("Async context manager connect (retry: %s, run: %s): %s", retry, run, info)
+    _LOGGER.debug(
+        "Async context manager connect (retry: %s, run_queue: %s): %s", retry, run_queue, info
+    )
 
     if retry:
         receiver = await _connect_receiver_retry(info)
@@ -139,9 +143,9 @@ async def connect(
         receiver = await Receiver.open_connection(info)
 
     try:
-        if run:
+        if run_queue:
             async with asyncio.TaskGroup() as tg:
-                tg.create_task(receiver.run())
+                tg.create_task(receiver.run_queue())
                 yield receiver
         else:
             yield receiver
@@ -152,9 +156,9 @@ async def connect(
 class _ReceiverState(Enum):
     """Receiver state."""
 
-    IDLE = "idle"
-    RUNNING = "running"
-    CLOSED = "closed"
+    CONNECTED = "CONNECTED"
+    RUNNING_QUEUE = "RUNNING_QUEUE"
+    CLOSED = "CLOSED"
 
 
 @dataclass
@@ -164,9 +168,9 @@ class Receiver(Generic[InfoT]):
     info: InfoT
     _reader: asyncio.StreamReader
     _writer: asyncio.StreamWriter
-    _read_queue: asyncio.Queue[Status] = field(default_factory=asyncio.Queue)
-    _write_queue: asyncio.Queue[Instruction] = field(default_factory=asyncio.Queue)
-    _state: _ReceiverState = _ReceiverState.IDLE
+    _read_queue: asyncio.Queue[Status] | None = None
+    _write_queue: asyncio.Queue[Instruction] | None = None
+    _state: _ReceiverState = _ReceiverState.CONNECTED
 
     @classmethod
     async def open_connection(cls, info: InfoT) -> Self:
@@ -176,60 +180,98 @@ class Receiver(Generic[InfoT]):
         _LOGGER.debug("Connected: %s", info)
         return cls(info, reader, writer)
 
-    async def run(self) -> None:
-        """Run reader/writer."""
-        if self._state is not _ReceiverState.IDLE:
+    async def run_queue(self) -> None:
+        """Run queue reader/writer."""
+        if self._state is not _ReceiverState.CONNECTED:
             raise RuntimeError(
-                "Run called on receiver not in IDLE state, "
+                "Run queue called on receiver not in CONNECTED state, "
                 f"current state: {self._state}, info: {self.info}"
             )
+
+        self._read_queue = asyncio.Queue()
+        self._write_queue = asyncio.Queue()
+        _LOGGER.debug("Run queue starting: %s", self.info)
+        self._state = _ReceiverState.RUNNING_QUEUE
+
         try:
-            _LOGGER.debug("Run starting: %s", self.info)
-            self._state = _ReceiverState.RUNNING
             async with asyncio.TaskGroup() as tg:
                 tg.create_task(read_messages(self._reader, self._read_queue, self.info))
                 tg.create_task(write_messages(self._writer, self._write_queue, self.info))
         except* OnkyoConnectionError as exc:
             _LOGGER.warning("Disconnect detected (%s): %s", exc.exceptions, self.info)
         finally:
-            _LOGGER.debug("Run ending: %s", self.info)
-            self._close()
+            _LOGGER.debug("Run queue ending: %s", self.info)
+            self._do_close()
 
     async def read(self) -> Status | None:
         """Read from the receiver."""
         if self._state is _ReceiverState.CLOSED:
             return None
-        try:
-            message = await self._read_queue.get()
-            _LOGGER.debug("[%s] <<<< %s", self.info.host, message)
-        except asyncio.QueueShutDown:
-            return None
+
+        if self._read_queue is None:
+            try:
+                message = await read_message(self._reader)
+            except OnkyoConnectionError as exc:
+                self._disconnect_from_read_write(exc)
+                return None
+            except Exception as exc:
+                self._disconnect_from_read_write(exc)
+                raise
         else:
-            return message
+            try:
+                message = await self._read_queue.get()
+            except asyncio.QueueShutDown:
+                return None
+
+        _LOGGER.debug("[%s] <<<< %s", self.info.host, message)
+        return message
 
     async def write(self, message: Instruction) -> None:
         """Write to the receiver."""
         if self._state is _ReceiverState.CLOSED:
             raise RuntimeError(f"Write called on receiver in CLOSED state, info: {self.info}")
-        _LOGGER.debug("[%s] >>   %s", self.info.host, message)
-        self._write_queue.put_nowait(message)
 
-    def _close(self) -> None:
-        """Close connection."""
+        if self._write_queue is None:
+            try:
+                await write_message(self._writer, message)
+            except Exception as exc:
+                self._disconnect_from_read_write(exc)
+                raise
+            _LOGGER.debug("[%s] >>>> %s", self.info.host, message)
+        else:
+            _LOGGER.debug("[%s] >>   %s", self.info.host, message)
+            self._write_queue.put_nowait(message)
+
+    def _disconnect_from_read_write(self, exc: Exception) -> None:
+        """Disconnect the receiver (called from read/write)."""
         if self._state is _ReceiverState.CLOSED:
-            _LOGGER.debug("Closing - already closed: %s", self.info)
+            _LOGGER.debug("Disconnect - already closed: %s", self.info)
             return
 
-        _LOGGER.debug("Closing - cleaning up: %s", self.info)
+        if isinstance(exc, OnkyoConnectionError):
+            _LOGGER.warning("Disconnect detected (%s): %s", exc, self.info)
+        self._do_close()
+
+    def _do_close(self) -> None:
+        """Close connection."""
+        if self._state is _ReceiverState.CLOSED:
+            raise RuntimeError(f"Do close called on receiver in CLOSED state, info: {self.info}")
+
+        _LOGGER.debug("Closing: %s", self.info)
         self._state = _ReceiverState.CLOSED
         self._writer.close()  # writer closes the whole stream, including the reader
-        self._read_queue.shutdown(immediate=True)
+        if self._read_queue is not None:
+            self._read_queue.shutdown(immediate=True)
 
     def close(self) -> None:
         """Close connection."""
-        if self._state is _ReceiverState.RUNNING:
-            raise RuntimeError(f"Close called on receiver in RUNNING state, info: {self.info}")
-        self._close()
+        if self._state is _ReceiverState.CLOSED:
+            return
+        if self._state is _ReceiverState.RUNNING_QUEUE:
+            raise RuntimeError(
+                f"Close called on receiver in RUNNING_QUEUE state, info: {self.info}"
+            )
+        self._do_close()
 
 
 class BasicReceiver(Receiver[BasicReceiverInfo]):

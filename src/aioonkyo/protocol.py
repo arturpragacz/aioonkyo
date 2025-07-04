@@ -351,10 +351,8 @@ def _validate_status_packet(packet: EISCPPacket[Status]) -> Status | None:
     return packet.iscp.message
 
 
-async def read_messages(
-    reader: asyncio.StreamReader, queue: asyncio.Queue[Status], info: BasicReceiverInfo
-) -> None:
-    """Read messages."""
+async def read_message(reader: asyncio.StreamReader) -> Status:
+    """Read message."""
     while True:
         try:
             packet = await EISCPPacket.parse_status_read(reader)
@@ -372,6 +370,25 @@ async def read_messages(
         message = _validate_status_packet(packet)
         if message is None:
             continue
+        return message
+
+
+async def write_message(writer: asyncio.StreamWriter, message: Instruction) -> None:
+    """Write message."""
+    packet = EISCPPacket.from_instruction_message(message)
+    try:
+        writer.write(packet.raw)
+        await writer.drain()
+    except OSError as exc:
+        raise OnkyoConnectionError(f"{exc!r}") from None
+
+
+async def read_messages(
+    reader: asyncio.StreamReader, queue: asyncio.Queue[Status], info: BasicReceiverInfo
+) -> None:
+    """Read messages."""
+    while True:
+        message = await read_message(reader)
         _LOGGER.debug("[%s]   << %s", info.host, message)
         await queue.put(message)
 
@@ -382,12 +399,7 @@ async def write_messages(
     """Write messages."""
     while True:
         message = await queue.get()
-        packet = EISCPPacket.from_instruction_message(message)
-        try:
-            writer.write(packet.raw)
-            await writer.drain()
-        except OSError as exc:
-            raise OnkyoConnectionError(f"{exc!r}") from None
+        await write_message(writer, message)
         _LOGGER.debug("[%s] >>>> %s", info.host, message)
 
 
