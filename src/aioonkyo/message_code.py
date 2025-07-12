@@ -53,7 +53,8 @@ class _CodeBaseConcreteMixin:
 
     @property
     def value(self) -> _CodeBaseConcreteMixin:
-        """Enum value (only for typing, this function is actually removed)."""
+        """Code value."""
+        # only for typing, this function is actually removed
         return self
 
 

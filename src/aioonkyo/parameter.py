@@ -15,7 +15,8 @@ class _ParamBase:
 
     @property
     def value(self) -> str:
-        """Param value (only for typing, this function is actually removed)."""
+        """Param value."""
+        # only for typing, this function is actually removed
         return ""
 
     @cached_property
@@ -56,7 +57,7 @@ class ParamEnum(_ParamEnumBase, Enum):
     def __new__(
         cls, value: str, _settings: ParamEnumSettings = _DEFAULT_PARAM_ENUM_SETTINGS, /
     ) -> Self:
-        """Only use first argument as the Enum value."""
+        # Only use first argument as the Enum value
         obj = object.__new__(cls)
         obj._value_ = value
         return obj
