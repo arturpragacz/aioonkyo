@@ -7,6 +7,7 @@ from ...instruction import (
     ListeningModeCommand as ListeningMode,
     MutingCommand as Muting,
     PowerCommand as Power,
+    ToneCommand as Tone,
     TunerPresetCommand as TunerPreset,
     VolumeCommand as Volume,
 )

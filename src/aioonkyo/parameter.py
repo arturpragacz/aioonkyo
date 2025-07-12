@@ -345,7 +345,8 @@ class ParamNumeric(_ParamBase):
     def from_numeric(cls, numeric: int) -> Self:
         if not cls.numeric_range[0] <= numeric <= cls.numeric_range[1]:
             raise ValueError(f"Param outside of range: {numeric} in {cls.__name__}")
-        return cls(numeric, f"{numeric:02X}".encode())
+        sign = "+" if cls.numeric_range[0] < 0 and numeric != 0 else ""
+        return cls(numeric, f"{numeric:{sign}02X}".encode())
 
     @classmethod
     def parse(cls, parameter: bytes) -> int:
@@ -357,6 +358,10 @@ class ParamNumeric(_ParamBase):
 
 class VolumeParamNumeric(ParamNumeric):
     numeric_range = (0, 200)
+
+
+class ToneParam(ParamNumeric):
+    numeric_range = (-10, 10)
 
 
 class TunerPresetParam(ParamNumeric):

@@ -12,6 +12,7 @@ from .parameter import (
     MutingParam,
     ParamEnum,
     PowerParam,
+    ToneParam,
     TunerPresetParam,
     VolumeParamEnum,
     VolumeParamNumeric,
@@ -64,6 +65,11 @@ class ChannelMutingQuery(_MainZoneInstructionMixin, _Query):
 @dataclass
 class VolumeQuery(_Query):
     kind: ClassVar[Kind] = Kind.VOLUME
+
+
+@dataclass
+class ToneQuery(_Query):
+    kind: ClassVar[Kind] = Kind.TONE
 
 
 @dataclass
@@ -186,6 +192,32 @@ class TunerPresetCommand(_Instruction):
         self._validate()
 
 
+@dataclass(kw_only=True)
+class ToneCommand(_Instruction):
+    kind: ClassVar[Kind] = Kind.TONE
+
+    bass: int | None = None
+    treble: int | None = None
+
+    parameter: bytes = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if (self.bass is None and self.treble is None) or (
+            self.bass is not None and self.treble is not None
+        ):
+            raise ValueError(
+                f"Exactly one of bass or treble must be set for {self.__class__.__name__}"
+            )
+
+        if self.bass is not None:
+            self.parameter = b"B" + ToneParam.from_numeric(self.bass).raw
+
+        if self.treble is not None:
+            self.parameter = b"T" + ToneParam.from_numeric(self.treble).raw
+
+        self._validate()
+
+
 # needs to be a dataclass because it inherits from two dataclasses
 @dataclass(kw_only=True)
 class _ChannelMutingCommand(_MainZoneInstructionMixin, _Instruction):
@@ -224,6 +256,7 @@ type KnownInstruction = (
     | MutingQuery
     | ChannelMutingQuery
     | VolumeQuery
+    | ToneQuery
     | InputSourceQuery
     | ListeningModeQuery
     | HDMIOutputQuery
@@ -239,6 +272,7 @@ type KnownInstruction = (
     | HDMIOutputCommand
     | VolumeCommand
     | TunerPresetCommand
+    | ToneCommand
     | ChannelMutingCommand
 )
 

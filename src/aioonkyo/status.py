@@ -17,6 +17,7 @@ from .parameter import (
     ParamEnum,
     ParamNumeric,
     PowerParam,
+    ToneParam,
     TunerPresetParam,
     VolumeParamNumeric,
 )
@@ -96,6 +97,37 @@ class VolumeStatus(_NumericStatus):
 class TunerPresetStatus(_NumericStatus):
     kind: ClassVar[Kind] = Kind.TUNER_PRESET
     Param: TypeAlias = TunerPresetParam
+
+
+@dataclass
+class _ToneStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.TONE
+
+    bass: int
+    treble: int
+
+    __match_args__ = ("bass", "treble")
+
+    _regex: ClassVar[re.Pattern[bytes]] = re.compile(rb"B(?P<bass>.+?)T(?P<treble>.+)")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        match = cls._regex.fullmatch(parameter)
+
+        if match is None:
+            raise ValueError(f"Regex match fail in {cls.__name__}")
+
+        bass = ToneParam.parse(match["bass"])
+        treble = ToneParam.parse(match["treble"])
+
+        self = cls(code, parameter, bass, treble)
+        self._validate()
+        return self
+
+
+class ToneStatus(_ToneStatus):
+    # TypeAlias doesn't work in dataclasses
+    Param: TypeAlias = ToneParam
 
 
 @dataclass(match_args=False)
@@ -323,6 +355,7 @@ type ValidStatus = (
     | HDMIOutputStatus
     | VolumeStatus
     | TunerPresetStatus
+    | ToneStatus
     | ChannelMutingStatus
     | AudioInformationStatus
     | VideoInformationStatus

@@ -14,6 +14,7 @@ from ..status import (
     PowerStatus as Power,
     RawStatus as Raw,
     Status as Status,
+    ToneStatus as Tone,
     TunerPresetStatus as TunerPreset,
     ValidStatus as Valid,
     VideoInformationStatus as VideoInformation,

@@ -26,6 +26,7 @@ class Kind(Enum):
     MUTING = auto()
     CHANNEL_MUTING = auto()
     VOLUME = auto()
+    TONE = auto()
     INPUT_SOURCE = auto()
     LISTENING_MODE = auto()
     HDMI_OUTPUT = auto()
@@ -105,6 +106,10 @@ class Code(CodeBase):
     ZVL = Kind.VOLUME, Zone.ZONE2
     VL3 = Kind.VOLUME, Zone.ZONE3
     VL4 = Kind.VOLUME, Zone.ZONE4
+    # TONE
+    TFR = Kind.TONE, Zone.MAIN
+    ZTN = Kind.TONE, Zone.ZONE2
+    TN3 = Kind.TONE, Zone.ZONE3
     # INPUT SOURCE
     SLI = Kind.INPUT_SOURCE, Zone.MAIN
     SLZ = Kind.INPUT_SOURCE, Zone.ZONE2

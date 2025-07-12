@@ -10,6 +10,7 @@ from ...instruction import (
     ListeningModeQuery as ListeningMode,
     MutingQuery as Muting,
     PowerQuery as Power,
+    ToneQuery as Tone,
     TunerPresetQuery as TunerPreset,
     VideoInformationQuery as VideoInformation,
     VolumeQuery as Volume,
