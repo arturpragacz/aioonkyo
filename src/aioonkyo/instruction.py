@@ -14,6 +14,7 @@ from .parameter import (
     PowerParam,
     ToneParam,
     TunerPresetParam,
+    TVOperationParam,
     VolumeParamEnum,
     VolumeParamNumeric,
 )
@@ -156,6 +157,17 @@ class HDMIOutputCommand(_HDMIOutputCommand):
     Param: TypeAlias = HDMIOutputParam
 
 
+# needs to be a dataclass because it inherits from two dataclasses
+@dataclass
+class _TVOperationCommand(_MainZoneInstructionMixin, _ParamCommand[TVOperationParam]):
+    kind: ClassVar[Kind] = Kind.TV_OPERATION
+
+
+class TVOperationCommand(_TVOperationCommand):
+    # TypeAlias doesn't work in dataclasses
+    Param: TypeAlias = TVOperationParam
+
+
 @dataclass
 class _VolumeCommand(_Instruction):
     kind: ClassVar[Kind] = Kind.VOLUME
@@ -270,6 +282,7 @@ type KnownInstruction = (
     | InputSourceCommand
     | ListeningModeCommand
     | HDMIOutputCommand
+    | TVOperationCommand
     | VolumeCommand
     | TunerPresetCommand
     | ToneCommand

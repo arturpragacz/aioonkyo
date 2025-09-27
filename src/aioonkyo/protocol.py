@@ -285,12 +285,12 @@ class ISCPStatusData(ISCPData[Status]):
         code = Code.parse(raw_code)
         if code is None:
             return RawStatus(raw_code, parameter)
+        if parameter == b"N/A":
+            return NotAvailableStatus.parse(code, parameter)
         status_cls = status_classes.get(code.kind)
         if status_cls is None:
             raw_status = RawStatus(raw_code, parameter)
             raise OnkyoISCPMessageError("ISCP message with no matching class.", raw_status)
-        if parameter == b"N/A":
-            return NotAvailableStatus.parse(code, parameter)
         try:
             status = status_cls.parse(code, parameter)
         except ValueError as exc:

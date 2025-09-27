@@ -9,5 +9,6 @@ from ...instruction import (
     PowerCommand as Power,
     ToneCommand as Tone,
     TunerPresetCommand as TunerPreset,
+    TVOperationCommand as TVOperation,
     VolumeCommand as Volume,
 )

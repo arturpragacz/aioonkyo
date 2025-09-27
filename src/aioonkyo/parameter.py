@@ -334,6 +334,43 @@ class HDMIOutputParam(MainZoneParamEnum):
     BOTH_SUB = "05", ParamEnumSettings("BOTH (SUB)")
 
 
+class TVOperationParam(MainZoneParamEnum):
+    POWER = "POWER"
+    PWRON = "PWRON", ParamEnumSettings("POWER ON")
+    PWROFF = "PWROFF", ParamEnumSettings("POWER OFF")
+    CHUP = "CHUP", ParamEnumSettings("CHANNEL UP")
+    CHDN = "CHDN", ParamEnumSettings("CHANNEL DOWN")
+    VLUP = "VLUP", ParamEnumSettings("VOLUME UP")
+    VLDN = "VLDN", ParamEnumSettings("VOLUME DOWN")
+    MUTE = "MUTE"
+    DISP = "DISP", ParamEnumSettings("DISPLAY")
+    INPUT = "INPUT"
+    NUM_1 = "1", ParamEnumSettings("1")
+    NUM_2 = "2", ParamEnumSettings("2")
+    NUM_3 = "3", ParamEnumSettings("3")
+    NUM_4 = "4", ParamEnumSettings("4")
+    NUM_5 = "5", ParamEnumSettings("5")
+    NUM_6 = "6", ParamEnumSettings("6")
+    NUM_7 = "7", ParamEnumSettings("7")
+    NUM_8 = "8", ParamEnumSettings("8")
+    NUM_9 = "9", ParamEnumSettings("9")
+    NUM_0 = "0", ParamEnumSettings("0")
+    CLEAR = "CLEAR"
+    SETUP = "SETUP"
+    GUIDE = "GUIDE"
+    PREV = "PREV", ParamEnumSettings("PREVIOUS")
+    UP = "UP"
+    DOWN = "DOWN"
+    LEFT = "LEFT"
+    RIGHT = "RIGHT"
+    ENTER = "ENTER"
+    RETURN = "RETURN"
+    A = "A"
+    B = "B"
+    C = "C"
+    D = "D"
+
+
 @dataclass
 class ParamNumeric(_ParamBase):
     numeric_range: ClassVar[tuple[int, int]]
