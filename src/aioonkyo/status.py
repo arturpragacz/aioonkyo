@@ -17,6 +17,7 @@ from .parameter import (
     ParamEnum,
     ParamNumeric,
     PowerParam,
+    TemperatureParam,
     ToneParam,
     TunerPresetParam,
     VolumeParamNumeric,
@@ -92,6 +93,30 @@ class _NumericStatus(_KnownStatus):
 class VolumeStatus(_NumericStatus):
     kind: ClassVar[Kind] = Kind.VOLUME
     Param: TypeAlias = VolumeParamNumeric
+
+
+@dataclass
+class TemperatureStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.TEMPERATURE
+
+    celsius: int
+
+    __match_args__ = ("celsius",)
+
+    _regex: ClassVar[re.Pattern[bytes]] = re.compile(rb"F.+C(?P<celsius>.+)")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        match = cls._regex.fullmatch(parameter)
+
+        if match is None:
+            raise ValueError(f"Regex match fail in {cls.__name__}")
+
+        celsius = TemperatureParam.parse(match["celsius"])
+
+        self = cls(code, parameter, celsius)
+        self._validate()
+        return self
 
 
 class TunerPresetStatus(_NumericStatus):
@@ -354,6 +379,7 @@ type ValidStatus = (
     | ListeningModeStatus
     | HDMIOutputStatus
     | VolumeStatus
+    | TemperatureStatus
     | TunerPresetStatus
     | ToneStatus
     | ChannelMutingStatus

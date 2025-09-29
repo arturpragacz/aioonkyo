@@ -396,6 +396,8 @@ class ParamNumeric(_ParamBase):
 class VolumeParamNumeric(ParamNumeric):
     numeric_range = (0, 200)
 
+class TemperatureParam(ParamNumeric):
+    numeric_range = (-73, 150)
 
 class ToneParam(ParamNumeric):
     numeric_range = (-10, 10)

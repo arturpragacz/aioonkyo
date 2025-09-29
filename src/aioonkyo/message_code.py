@@ -36,6 +36,7 @@ class Kind(Enum):
     FL_DISPLAY = auto()
     TV_OPERATION = auto()
     DISCOVERY = auto()
+    TEMPERATURE = auto()
 
     def __repr__(self) -> str:
         return str(self)
@@ -136,6 +137,8 @@ class Code(CodeBase):
     CTV = Kind.TV_OPERATION, Zone.MAIN
     # DISCOVERY
     ECN = Kind.DISCOVERY, Zone.MAIN
+    # TEMPERATURE
+    TPD = Kind.TEMPERATURE, Zone.MAIN
 
 
 __all__ = [
