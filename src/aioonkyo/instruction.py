@@ -263,7 +263,7 @@ class ChannelMutingCommand(_ChannelMutingCommand):
     Param: TypeAlias = MutingParam
 
 
-type KnownInstruction = (
+type KnownQuery = (
     PowerQuery
     | MutingQuery
     | ChannelMutingQuery
@@ -277,7 +277,10 @@ type KnownInstruction = (
     | TunerPresetQuery
     | FLDisplayQuery
     | DiscoveryQuery
-    | PowerCommand
+)
+
+type KnownCommand = (
+    PowerCommand
     | MutingCommand
     | InputSourceCommand
     | ListeningModeCommand
@@ -288,6 +291,8 @@ type KnownInstruction = (
     | ToneCommand
     | ChannelMutingCommand
 )
+
+type KnownInstruction = KnownQuery | KnownCommand
 
 
 class RawInstruction(RawMessage):
