@@ -108,13 +108,12 @@ class TemperatureStatus(_KnownStatus):
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
         match = cls._regex.fullmatch(parameter)
-
         if match is None:
-            raise ValueError(f"Regex match fail in {cls.__name__}")
+            raise ValueError(f"Regex match fail for TemperatureStatus on: {parameter!r}")
 
-        celsius = TemperatureParam.parse(match["celsius"])
+        celsius_val = int(match["celsius"])
 
-        self = cls(code, parameter, celsius)
+        self = cls(code, parameter, celsius=celsius_val)
         self._validate()
         return self
 
