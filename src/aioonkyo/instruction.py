@@ -192,6 +192,10 @@ class VolumeCommand(_VolumeCommand):
 
 
 @dataclass
+class TemperatureQuery(_Query):
+    kind: ClassVar[Kind] = Kind.TEMPERATURE
+
+@dataclass
 class TunerPresetCommand(_Instruction):
     kind: ClassVar[Kind] = Kind.TUNER_PRESET
 
@@ -287,6 +291,7 @@ type KnownCommand = (
     | HDMIOutputCommand
     | TVOperationCommand
     | VolumeCommand
+    | TemperatureQuery
     | TunerPresetCommand
     | ToneCommand
     | ChannelMutingCommand
