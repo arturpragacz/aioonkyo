@@ -374,20 +374,30 @@ class TVOperationParam(MainZoneParamEnum):
 @dataclass
 class ParamNumeric(_ParamBase):
     numeric_range: ClassVar[tuple[int, int]]
+    decimal: ClassVar[bool] = False
+    format_width: ClassVar[int] = 2
 
     numeric: int
     raw: bytes
 
     @classmethod
+    def format_options(cls, numeric: int) -> str:
+        sign = "+" if cls.numeric_range[0] < 0 and numeric != 0 else ""
+        return f"{sign}0"
+
+    @classmethod
     def from_numeric(cls, numeric: int) -> Self:
         if not cls.numeric_range[0] <= numeric <= cls.numeric_range[1]:
             raise ValueError(f"Param outside of range: {numeric} in {cls.__name__}")
-        sign = "+" if cls.numeric_range[0] < 0 and numeric != 0 else ""
-        return cls(numeric, f"{numeric:{sign}02X}".encode())
+
+        options = cls.format_options(numeric)
+        width = cls.format_width
+        integer_presentation = "" if cls.decimal else "X"
+        return cls(numeric, f"{numeric:{options}{width}{integer_presentation}}".encode())
 
     @classmethod
     def parse(cls, parameter: bytes) -> int:
-        numeric = int(parameter, 16)
+        numeric = int(parameter, 10 if cls.decimal else 16)
         if not cls.numeric_range[0] <= numeric <= cls.numeric_range[1]:
             raise ValueError(f"Param outside of range: {numeric} in {cls.__name__}")
         return numeric
@@ -403,6 +413,16 @@ class ToneParam(ParamNumeric):
 
 class TunerPresetParam(ParamNumeric):
     numeric_range = (0, 40)
+
+
+class TemperatureParam(ParamNumeric):
+    numeric_range = (-99, 999)
+    decimal = True
+    format_width = 3
+
+    @classmethod
+    def format_options(cls, _numeric: int) -> str:
+        return ""
 
 
 class DestinationArea(Enum):

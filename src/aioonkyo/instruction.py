@@ -109,6 +109,11 @@ class FLDisplayQuery(_MainZoneInstructionMixin, _Query):
 
 
 @dataclass
+class TemperatureQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.TEMPERATURE
+
+
+@dataclass
 class DiscoveryQuery(_MainZoneInstructionMixin, _Query):
     kind: ClassVar[Kind] = Kind.DISCOVERY
 
@@ -276,6 +281,7 @@ type KnownQuery = (
     | VideoInformationQuery
     | TunerPresetQuery
     | FLDisplayQuery
+    | TemperatureQuery
     | DiscoveryQuery
 )
 

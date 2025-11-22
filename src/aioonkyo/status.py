@@ -17,6 +17,7 @@ from .parameter import (
     ParamEnum,
     ParamNumeric,
     PowerParam,
+    TemperatureParam,
     ToneParam,
     TunerPresetParam,
     VolumeParamNumeric,
@@ -128,6 +129,37 @@ class _ToneStatus(_KnownStatus):
 class ToneStatus(_ToneStatus):
     # TypeAlias doesn't work in dataclasses
     Param: TypeAlias = ToneParam
+
+
+@dataclass
+class _TemperatureStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.TEMPERATURE
+
+    celsius: int
+    fahrenheit: int
+
+    __match_args__ = ("celsius",)
+
+    _regex: ClassVar[re.Pattern[bytes]] = re.compile(rb"F(?P<fahrenheit>.+?)C(?P<celsius>.+)")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        match = cls._regex.fullmatch(parameter)
+
+        if match is None:
+            raise ValueError(f"Regex match fail in {cls.__name__}")
+
+        celsius = TemperatureParam.parse(match["celsius"])
+        fahrenheit = TemperatureParam.parse(match["fahrenheit"])
+
+        self = cls(code, parameter, celsius, fahrenheit)
+        self._validate()
+        return self
+
+
+class TemperatureStatus(_TemperatureStatus):
+    # TypeAlias doesn't work in dataclasses
+    Param: TypeAlias = TemperatureParam
 
 
 @dataclass(match_args=False)
@@ -356,6 +388,7 @@ type ValidStatus = (
     | VolumeStatus
     | TunerPresetStatus
     | ToneStatus
+    | TemperatureStatus
     | ChannelMutingStatus
     | AudioInformationStatus
     | VideoInformationStatus

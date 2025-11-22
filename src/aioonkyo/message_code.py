@@ -34,6 +34,7 @@ class Kind(Enum):
     VIDEO_INFORMATION = auto()
     TUNER_PRESET = auto()
     FL_DISPLAY = auto()
+    TEMPERATURE = auto()
     TV_OPERATION = auto()
     DISCOVERY = auto()
 
@@ -132,6 +133,8 @@ class Code(CodeBase):
     PR4 = Kind.TUNER_PRESET, Zone.ZONE4
     # FL DISPLAY
     FLD = Kind.FL_DISPLAY, Zone.MAIN
+    # TEMPERATURE
+    TPD = Kind.TEMPERATURE, Zone.MAIN
     # TV OPERATION
     CTV = Kind.TV_OPERATION, Zone.MAIN
     # DISCOVERY
