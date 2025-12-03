@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum, auto
-from typing import TYPE_CHECKING, ClassVar, Self
+from typing import TYPE_CHECKING, ClassVar
 
 
 class Zone(Enum):
@@ -42,17 +42,11 @@ class Kind(Enum):
         return str(self)
 
 
-@dataclass(slots=True, init=False)
+@dataclass(slots=True)
 class _CodeBaseConcreteMixin:
     kind: Kind
     zone: Zone
     raw: bytes = field(repr=False, init=False)
-
-    def __new__(cls, kind: Kind, zone: Zone) -> Self:
-        self = object.__new__(cls)
-        self.kind = kind
-        self.zone = zone
-        return self
 
     @property
     def value(self) -> _CodeBaseConcreteMixin:
@@ -72,8 +66,12 @@ class CodeBase(_CodeBaseConcreteMixin, Enum):
     def __init__(self, kind: Kind, zone: Zone) -> None:
         if TYPE_CHECKING:
             assert isinstance(self, Code)
+
+        super().__init__(kind, zone)
+
         raw = self.name.encode()
         self.value.raw = self.raw = raw
+
         self.__kind_mapping.setdefault(kind, {})[zone] = self
         self.__raw_mapping[raw] = self
 
