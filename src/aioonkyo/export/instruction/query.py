@@ -11,6 +11,7 @@ from ...instruction import (
     MutingQuery as Muting,
     PowerQuery as Power,
     TemperatureQuery as Temperature,
+    TemporaryChannelLevelQuery as TemporaryChannelLevel,
     ToneQuery as Tone,
     TunerPresetQuery as TunerPreset,
     VideoInformationQuery as VideoInformation,

@@ -21,6 +21,7 @@ from .parameter import (
     ToneParam,
     TunerPresetParam,
     VolumeParamNumeric,
+    TemporaryChannelLevelNumeric,
 )
 
 
@@ -195,6 +196,41 @@ class _ChannelMutingStatus(_KnownStatus):
 class ChannelMutingStatus(_ChannelMutingStatus):
     # TypeAlias doesn't work in dataclasses
     Param: TypeAlias = MutingParam
+
+
+@dataclass(match_args=False)
+class _TemporaryChannelLevelStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.TEMPORARY_CHANNEL_LEVEL
+
+    front_left: int | None
+    front_right: int | None
+    center: int | None
+    surround_left: int | None
+    surround_right: int | None
+    surround_back_left: int | None
+    surround_back_right: int | None
+    subwoofer: int | None
+    height_1_left: int | None
+    height_1_right: int | None
+    height_2_left: int | None
+    height_2_right: int | None
+    subwoofer_2: int | None
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        if len(parameter) != 13 * 3:
+            raise ValueError(f"Incorrect number of values in {cls.__name__}")
+
+        values = (TemporaryChannelLevelNumeric.parse(parameter[i : i + 3]) for i in range(0, len(parameter), 3))
+
+        self = cls(code, parameter, *values)
+        self._validate()
+        return self
+
+
+class TemporaryChannelLevelStatus(_TemporaryChannelLevelStatus):
+    # TypeAlias doesn't work in dataclasses
+    Param: TypeAlias = TemporaryChannelLevelNumeric
 
 
 @dataclass(match_args=False)
@@ -390,6 +426,7 @@ type ValidStatus = (
     | ToneStatus
     | TemperatureStatus
     | ChannelMutingStatus
+    | TemporaryChannelLevelStatus
     | AudioInformationStatus
     | VideoInformationStatus
     | FLDisplayStatus

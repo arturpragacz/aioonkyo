@@ -431,6 +431,50 @@ class DestinationArea(Enum):
     JAPAN = "JJ"
 
 
+class TemporaryChannelLevelNumeric(ParamNumeric):
+    """Single-channel Temporary Channel Level numeric parameter.
+
+    This represents one channel's TCL numeric parameter. It inherits from
+    ParamNumeric but overrides encoding/decoding to match the TCL format:
+    - Zero: '000'
+    - Positive: '+{HEX:2}'  (e.g. +2 -> '+02', +16 -> '+10')
+    - Negative: '-{HEX:2}'  (e.g. -1 -> '-01')
+
+    Numeric range: [-16, 16]
+    """
+
+    numeric_range = (-16, 16)
+    decimal = False
+    format_width = 3
+
+    @classmethod
+    def from_numeric(cls, numeric: int) -> Self:
+        if not cls.numeric_range[0] <= numeric <= cls.numeric_range[1]:
+            raise ValueError(f"Param outside of range: {numeric} in {cls.__name__}")
+        if numeric == 0:
+            raw = b"000"
+        else:
+            sign = b"+" if numeric > 0 else b"-"
+            absval = abs(numeric)
+            raw = sign + f"{absval:02X}".encode("ascii")
+        return cls(numeric, raw)
+
+    @classmethod
+    def parse(cls, parameter: bytes) -> int:
+        if len(parameter) != 3:
+            raise ValueError(f"Invalid TCL single-parameter length: {len(parameter)}")
+        if parameter == b"000":
+            return 0
+        sign = parameter[:1]
+        digits = parameter[1:3].decode("ascii")
+        try:
+            val = int(digits, 16)
+        except ValueError as exc:
+            raise ValueError(f"Invalid TCL digits: {digits}") from exc
+        return val if sign == b"+" else -val
+
+
+
 __all__ = [
     "InputSourceParam",
     "ListeningModeParam",

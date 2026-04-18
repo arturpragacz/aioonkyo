@@ -15,6 +15,7 @@ from ..status import (
     RawStatus as Raw,
     Status as Status,
     TemperatureStatus as Temperature,
+    TemporaryChannelLevelStatus as TemporaryChannelLevel,
     ToneStatus as Tone,
     TunerPresetStatus as TunerPreset,
     ValidStatus as Valid,

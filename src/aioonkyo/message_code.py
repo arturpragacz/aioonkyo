@@ -25,6 +25,7 @@ class Kind(Enum):
     POWER = auto()
     MUTING = auto()
     CHANNEL_MUTING = auto()
+    TEMPORARY_CHANNEL_LEVEL = auto()
     VOLUME = auto()
     TONE = auto()
     INPUT_SOURCE = auto()
@@ -101,6 +102,8 @@ class Code(CodeBase):
     MT4 = Kind.MUTING, Zone.ZONE4
     # CHANNEL MUTING
     CMT = Kind.CHANNEL_MUTING, Zone.MAIN
+    # TEMPORARY CHANNEL LEVEL
+    TCL = Kind.TEMPORARY_CHANNEL_LEVEL, Zone.MAIN
     # VOLUME
     MVL = Kind.VOLUME, Zone.MAIN
     ZVL = Kind.VOLUME, Zone.ZONE2

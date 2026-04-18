@@ -7,6 +7,7 @@ from ...instruction import (
     ListeningModeCommand as ListeningMode,
     MutingCommand as Muting,
     PowerCommand as Power,
+    TemporaryChannelLevelCommand as TemporaryChannelLevel,
     ToneCommand as Tone,
     TunerPresetCommand as TunerPreset,
     TVOperationCommand as TVOperation,

@@ -17,6 +17,7 @@ from .parameter import (
     TVOperationParam,
     VolumeParamEnum,
     VolumeParamNumeric,
+    TemporaryChannelLevelNumeric,
 )
 
 
@@ -61,6 +62,11 @@ class MutingQuery(_Query):
 @dataclass
 class ChannelMutingQuery(_MainZoneInstructionMixin, _Query):
     kind: ClassVar[Kind] = Kind.CHANNEL_MUTING
+
+
+@dataclass
+class TemporaryChannelLevelQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.TEMPORARY_CHANNEL_LEVEL
 
 
 @dataclass
@@ -268,10 +274,53 @@ class ChannelMutingCommand(_ChannelMutingCommand):
     Param: TypeAlias = MutingParam
 
 
+# needs to be a dataclass because it inherits from two dataclasses
+@dataclass(kw_only=True)
+class _TemporaryChannelLevelCommand(_MainZoneInstructionMixin, _Instruction):
+    kind: ClassVar[Kind] = Kind.TEMPORARY_CHANNEL_LEVEL
+    # Each channel is represented as a simple int in range [-16, 16].
+    # The dataclass contains one attribute per channel (default 0).
+    front_left: int = 0
+    front_right: int = 0
+    center: int = 0
+    surround_left: int = 0
+    surround_right: int = 0
+    surround_back_left: int = 0
+    surround_back_right: int = 0
+    subwoofer: int = 0
+    height_1_left: int = 0
+    height_1_right: int = 0
+    height_2_left: int = 0
+    height_2_right: int = 0
+    subwoofer_2: int = 0
+
+    parameter: bytes = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        parts: list[bytes] = []
+        for param, val in vars(self).items():
+            if isinstance(val, Kind):
+                continue
+            if not isinstance(val, int):
+                raise TypeError(f"Channel {param} must be int, got {type(val).__name__}")
+            # encode single int to 3-char ASCII using helper
+            enc = TemporaryChannelLevelNumeric.from_numeric(val)
+            parts.append(enc.raw)
+
+        self.parameter = b"".join(parts)
+        self._validate()
+
+
+class TemporaryChannelLevelCommand(_TemporaryChannelLevelCommand):
+    # TypeAlias doesn't work in dataclasses
+    Param: TypeAlias = int
+
+
 type KnownQuery = (
     PowerQuery
     | MutingQuery
     | ChannelMutingQuery
+    | TemporaryChannelLevelQuery
     | VolumeQuery
     | ToneQuery
     | InputSourceQuery
@@ -296,6 +345,7 @@ type KnownCommand = (
     | TunerPresetCommand
     | ToneCommand
     | ChannelMutingCommand
+    | TemporaryChannelLevelCommand
 )
 
 type KnownInstruction = KnownQuery | KnownCommand
