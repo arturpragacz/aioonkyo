@@ -334,6 +334,51 @@ class HDMIOutputParam(MainZoneParamEnum):
     BOTH_SUB = "05", ParamEnumSettings("BOTH (SUB)")
 
 
+class NetOperationParam(MainZoneParamEnum):
+    PLAY = "PLAY"
+    PAUSE = "PAUSE"
+    STOP = "STOP"
+    NEXT = "TRUP"
+    PREVIOUS = "TRDN"
+    REPEAT = "REPEAT"
+    RANDOM = "RANDOM"
+
+
+class _NetModeParam(MainZoneParamEnum):
+    @classmethod
+    def parse_optional(cls, parameter: bytes) -> Self | None:
+        """Decode one NST field, including reports with missing or unknown fields."""
+        try:
+            return cls.parse(parameter)
+        except ValueError:
+            return None
+
+
+class NetPlaybackState(_NetModeParam):
+    STOPPED = "S"
+    PLAYING = "P"
+    PAUSED = "p"
+    FAST_FORWARD = "F"
+    FAST_REVERSE = "R"
+    END = "E"
+
+
+class NetRepeatMode(_NetModeParam):
+    OFF = "-"
+    ALL = "R"
+    FOLDER = "F"
+    ONE = "1"
+    DISABLED = "x"
+
+
+class NetShuffleMode(_NetModeParam):
+    OFF = "-"
+    ALL = "S"
+    ALBUM = "A"
+    FOLDER = "F"
+    DISABLED = "x"
+
+
 class TVOperationParam(MainZoneParamEnum):
     POWER = "POWER"
     PWRON = "PWRON", ParamEnumSettings("POWER ON")
@@ -435,4 +480,7 @@ __all__ = [
     "InputSourceParam",
     "ListeningModeParam",
     "HDMIOutputParam",
+    "NetPlaybackState",
+    "NetRepeatMode",
+    "NetShuffleMode",
 ]

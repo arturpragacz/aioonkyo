@@ -37,6 +37,13 @@ class Kind(Enum):
     TEMPERATURE = auto()
     TV_OPERATION = auto()
     DISCOVERY = auto()
+    NET_PLAY_STATUS = auto()
+    NET_TITLE = auto()
+    NET_ARTIST = auto()
+    NET_ALBUM = auto()
+    NET_TIME = auto()
+    NET_TRACK = auto()
+    NET_OPERATION = auto()
 
     def __repr__(self) -> str:
         return str(self)
@@ -137,6 +144,14 @@ class Code(CodeBase):
     CTV = Kind.TV_OPERATION, Zone.MAIN
     # DISCOVERY
     ECN = Kind.DISCOVERY, Zone.MAIN
+    # NET/USB player
+    NST = Kind.NET_PLAY_STATUS, Zone.MAIN
+    NTI = Kind.NET_TITLE, Zone.MAIN
+    NAT = Kind.NET_ARTIST, Zone.MAIN
+    NAL = Kind.NET_ALBUM, Zone.MAIN
+    NTM = Kind.NET_TIME, Zone.MAIN
+    NTR = Kind.NET_TRACK, Zone.MAIN
+    NTC = Kind.NET_OPERATION, Zone.MAIN
 
 
 __all__ = [
