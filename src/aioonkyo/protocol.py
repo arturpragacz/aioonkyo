@@ -14,7 +14,7 @@ from typing import ClassVar, Self
 from .common import OnkyoError
 from .instruction import DiscoveryQuery, Instruction
 from .message import Message
-from .message_code import Code
+from .message_code import Code, Kind
 from .parameter import DestinationArea
 from .status import DiscoveryStatus, NotAvailableStatus, RawStatus, Status, status_classes
 
@@ -287,8 +287,9 @@ class ISCPStatusData(ISCPData[Status]):
             return RawStatus(raw_code, parameter)
         if parameter == b"N/A":
             return NotAvailableStatus.parse(code, parameter)
-        # NTC is a remote-control key press. Receivers may echo vendor-specific keys.
-        if code is Code.NTC:
+        # NTC is a remote-control key press and NTS a seek request; receivers may echo
+        # vendor-specific keys or the requested time.
+        if code.kind in {Kind.NET_OPERATION, Kind.NET_TIME_SEEK}:
             return RawStatus(raw_code, parameter)
         status_cls = status_classes.get(code.kind)
         if status_cls is None:

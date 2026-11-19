@@ -1,7 +1,7 @@
 """NET/USB messages decoded from and encoded into complete eISCP frames."""
 
 # Keep the suite runnable with the standard library.
-# ruff: noqa: PT009
+# ruff: noqa: PT009, PT027
 
 import struct
 import unittest
@@ -9,6 +9,8 @@ import unittest
 from aioonkyo import (
     Code,
     Kind,
+    NetArtPacket,
+    NetArtType,
     NetPlaybackState,
     NetRepeatMode,
     NetShuffleMode,
@@ -104,12 +106,18 @@ class TestNetPlayback(unittest.TestCase):
 
     def test_other_responses(self) -> None:
         """Keep unavailable, echo and unimplemented messages accessible."""
-        for code, kind in ((b"NST", Kind.NET_PLAY_STATUS), (b"NTC", Kind.NET_OPERATION)):
+        for code, kind in (
+            (b"NST", Kind.NET_PLAY_STATUS),
+            (b"NTC", Kind.NET_OPERATION),
+            (b"NMS", Kind.NET_MENU_STATUS),
+            (b"NTS", Kind.NET_TIME_SEEK),
+            (b"NJA", Kind.NET_JACKET_ART),
+        ):
             message = _read(code + b"N/A")
             self.assertIsInstance(message, status.NotAvailable)
             self.assertEqual(message.kind, kind)
 
-        for code, parameter in ((b"NTC", b"PLAY"), (b"NTC", b"CUSTOM"), (b"NJA", b"n-")):
+        for code, parameter in ((b"NTC", b"PLAY"), (b"NTC", b"CUSTOM"), (b"NTS", b"00:01:00")):
             self.assertEqual(_read(code + parameter), status.Raw(code, parameter))
 
     def test_queries(self) -> None:
@@ -121,6 +129,7 @@ class TestNetPlayback(unittest.TestCase):
             (b"NAL", query.NetAlbum()),
             (b"NTM", query.NetTime()),
             (b"NTR", query.NetTrack()),
+            (b"NMS", query.NetMenuStatus()),
         ):
             with self.subTest(code=code):
                 frame = EISCPPacket.from_instruction_message(instruction)
@@ -148,3 +157,55 @@ class TestNetPlayback(unittest.TestCase):
             with self.subTest(param=param):
                 frame = EISCPPacket.from_instruction_message(command.NetOperation(param))
                 self.assertEqual(frame.raw, _packet(b"!1NTC" + payload + b"\r\n"))
+
+    def test_menu(self) -> None:
+        """Read the Time Seek flag and service id out of the menu status."""
+        for parameter, track_menu, seek, service in (
+            (b"m0000S100", True, True, "00"),
+            (b"xxxxxx10a", False, False, "0A"),
+            (b"mxxxx?x1E", True, None, "1E"),
+            (b"xxxxxS", False, True, None),
+            (b"", None, None, None),
+        ):
+            with self.subTest(parameter=parameter):
+                message = _read(b"NMS" + parameter)
+                self.assertIsInstance(message, status.NetMenuStatus)
+                self.assertEqual(
+                    (message.track_menu, message.seek, message.service), (track_menu, seek, service)
+                )
+
+    def test_jacket_art(self) -> None:
+        """Expose art URLs, image packets, missing art and unrecognized reports."""
+        url = b"http://192.0.2.10/album_art.cgi"
+        for parameter, image_type, packet, data, expected_url in (
+            (b"2-" + url, NetArtType.URL, NetArtPacket.SINGLE, url, url.decode()),
+            (b"n-", NetArtType.NONE, NetArtPacket.SINGLE, b"", None),
+            (b"10FFD8", NetArtType.JPEG, NetArtPacket.START, b"FFD8", None),
+            (b"0242", NetArtType.BMP, NetArtPacket.END, b"42", None),
+            (b"20" + url, NetArtType.URL, NetArtPacket.START, url, None),
+            (b"LINK\x1a\n\n", None, None, b"LINK", None),
+        ):
+            with self.subTest(parameter=parameter):
+                message = _read(b"NJA" + parameter)
+                self.assertIsInstance(message, status.NetJacketArt)
+                self.assertEqual(
+                    (message.image_type, message.packet, message.data), (image_type, packet, data)
+                )
+                self.assertEqual(message.url, expected_url)
+
+    def test_jacket_art_request(self) -> None:
+        """Ask for the current art itself rather than the art mode."""
+        frame = EISCPPacket.from_instruction_message(
+            command.NetJacketArt(command.NetJacketArt.Param.REQUEST)
+        )
+        self.assertEqual(frame.raw, _packet(b"!1NJAREQ\r\n"))
+
+    def test_time_seek(self) -> None:
+        """Seek with an hh:mm:ss position and reject positions NTS cannot express."""
+        for position, payload in ((0, b"00:00:00"), (3723, b"01:02:03"), (359999, b"99:59:59")):
+            with self.subTest(position=position):
+                frame = EISCPPacket.from_instruction_message(command.NetTimeSeek(position))
+                self.assertEqual(frame.raw, _packet(b"!1NTS" + payload + b"\r\n"))
+        for position in (-1, 360000):
+            with self.subTest(position=position), self.assertRaises(ValueError):
+                command.NetTimeSeek(position)

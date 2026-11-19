@@ -418,6 +418,24 @@ class NetShuffleMode(_NetModeParam):
     DISABLED = "x"
 
 
+class NetJacketArtParam(MainZoneParamEnum):
+    REQUEST = "REQ"
+
+
+class NetArtType(_NetModeParam):
+    BMP = "0"
+    JPEG = "1"
+    URL = "2"
+    NONE = "n"
+
+
+class NetArtPacket(_NetModeParam):
+    START = "0"
+    NEXT = "1"
+    END = "2"
+    SINGLE = "-"
+
+
 class TVOperationParam(MainZoneParamEnum):
     POWER = "POWER"
     PWRON = "PWRON", ParamEnumSettings("POWER ON")
@@ -519,6 +537,8 @@ __all__ = [
     "InputSourceParam",
     "ListeningModeParam",
     "HDMIOutputParam",
+    "NetArtPacket",
+    "NetArtType",
     "NetPlaybackState",
     "NetRepeatMode",
     "NetShuffleMode",

@@ -14,6 +14,8 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetArtPacket,
+    NetArtType,
     NetPlaybackState,
     NetRepeatMode,
     NetShuffleMode,
@@ -475,6 +477,73 @@ class NetTrackStatus(_KnownStatus):
         return self
 
 
+def _net_menu_flag(value: bytes, enabled: bytes) -> bool | None:
+    if value == enabled:
+        return True
+    if value == b"x":
+        return False
+    return None
+
+
+@dataclass
+class NetMenuStatus(_KnownStatus):
+    """Menu status ("maabbstii"): track menu, icons, Time Seek, time display, service."""
+
+    kind: ClassVar[Kind] = Kind.NET_MENU_STATUS
+
+    track_menu: bool | None
+    seek: bool | None
+    service: str | None
+
+    __match_args__ = ("track_menu", "seek", "service")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        service = value[7:9]
+        return cls(
+            code,
+            parameter,
+            _net_menu_flag(value[:1], b"m"),
+            _net_menu_flag(value[5:6], b"S"),
+            service.decode().upper()
+            if len(service) == 2 and service.isascii() and service.isalnum()
+            else None,
+        )
+
+
+@dataclass
+class NetJacketArtStatus(_KnownStatus):
+    """Jacket art: a URL, a hex-encoded image packet, or no art for this track.
+
+    Unrecognized reports, such as the art mode answering QSTN, keep their whole value in `data`.
+    """
+
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
+
+    image_type: NetArtType | None
+    packet: NetArtPacket | None
+    data: bytes
+
+    __match_args__ = ("image_type", "packet", "data")
+
+    @property
+    def url(self) -> str | None:
+        """Return the art URL, if this report carries one."""
+        if self.image_type is not NetArtType.URL or self.packet is not NetArtPacket.SINGLE:
+            return None
+        return self.data.decode("utf-8", "replace")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        image_type = NetArtType.parse_optional(value[:1])
+        packet = NetArtPacket.parse_optional(value[1:2])
+        if image_type is None or packet is None:
+            return cls(code, parameter, None, None, value)
+        return cls(code, parameter, image_type, packet, value[2:])
+
+
 @dataclass
 class NotAvailableStatus(_KnownStatus):
     kind: Kind = field()
@@ -509,6 +578,8 @@ type ValidStatus = (
     | NetAlbumStatus
     | NetTimeStatus
     | NetTrackStatus
+    | NetMenuStatus
+    | NetJacketArtStatus
 )
 
 type KnownStatus = ValidStatus | NotAvailableStatus

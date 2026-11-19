@@ -10,6 +10,7 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetJacketArtParam,
     NetOperationParam,
     ParamEnum,
     PowerParam,
@@ -150,6 +151,11 @@ class NetTrackQuery(_MainZoneInstructionMixin, _Query):
 
 
 @dataclass
+class NetMenuStatusQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_MENU_STATUS
+
+
+@dataclass
 class _ParamCommand[ParamT: ParamEnum](_Instruction):
     kind: ClassVar[Kind]
 
@@ -211,6 +217,43 @@ class _NetOperationCommand(_MainZoneInstructionMixin, _ParamCommand[NetOperation
 
 class NetOperationCommand(_NetOperationCommand):
     Param: TypeAlias = NetOperationParam
+
+
+@dataclass
+class _NetJacketArtCommand(_MainZoneInstructionMixin, _ParamCommand[NetJacketArtParam]):
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
+
+
+class NetJacketArtCommand(_NetJacketArtCommand):
+    """Request the current track's jacket art; QSTN only reports the art mode."""
+
+    Param: TypeAlias = NetJacketArtParam
+
+
+# NTS takes hh:mm:ss, so the longest position it can express is 99:59:59.
+_NET_TIME_SEEK_MAX = 99 * 3600 + 59 * 60 + 59
+
+
+@dataclass
+class NetTimeSeekCommand(_MainZoneInstructionMixin, _Instruction):
+    """Seek the network player, in whole seconds.
+
+    Receivers accept it only while NMS reports Time Seek as enabled.
+    """
+
+    kind: ClassVar[Kind] = Kind.NET_TIME_SEEK
+
+    position: int
+
+    parameter: bytes = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.position <= _NET_TIME_SEEK_MAX:
+            raise ValueError(f"Position {self.position} out of range for {self.__class__.__name__}")
+        minutes, seconds = divmod(self.position, 60)
+        hours, minutes = divmod(minutes, 60)
+        self.parameter = f"{hours:02}:{minutes:02}:{seconds:02}".encode()
+        self._validate()
 
 
 @dataclass
@@ -329,6 +372,7 @@ type KnownQuery = (
     | NetAlbumQuery
     | NetTimeQuery
     | NetTrackQuery
+    | NetMenuStatusQuery
 )
 
 type KnownCommand = (
@@ -339,6 +383,8 @@ type KnownCommand = (
     | HDMIOutputCommand
     | TVOperationCommand
     | NetOperationCommand
+    | NetJacketArtCommand
+    | NetTimeSeekCommand
     | VolumeCommand
     | TunerPresetCommand
     | ToneCommand

@@ -44,6 +44,9 @@ class Kind(Enum):
     NET_TIME = auto()
     NET_TRACK = auto()
     NET_OPERATION = auto()
+    NET_MENU_STATUS = auto()
+    NET_TIME_SEEK = auto()
+    NET_JACKET_ART = auto()
 
     def __repr__(self) -> str:
         return str(self)
@@ -158,6 +161,9 @@ class Code(CodeBase):
     NTR = Kind.NET_TRACK, Zone.MAIN
     # NET OPERATION
     NTC = Kind.NET_OPERATION, Zone.MAIN
+    NMS = Kind.NET_MENU_STATUS, Zone.MAIN
+    NTS = Kind.NET_TIME_SEEK, Zone.MAIN
+    NJA = Kind.NET_JACKET_ART, Zone.MAIN
 
 
 __all__ = [

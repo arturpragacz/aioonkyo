@@ -11,6 +11,7 @@ from ...instruction import (
     MutingQuery as Muting,
     NetAlbumQuery as NetAlbum,
     NetArtistQuery as NetArtist,
+    NetMenuStatusQuery as NetMenuStatus,
     NetPlayStatusQuery as NetPlayStatus,
     NetTimeQuery as NetTime,
     NetTitleQuery as NetTitle,
