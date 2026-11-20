@@ -151,8 +151,15 @@ class NetTrackQuery(_MainZoneInstructionMixin, _Query):
 
 
 @dataclass
-class NetMenuStatusQuery(_MainZoneInstructionMixin, _Query):
-    kind: ClassVar[Kind] = Kind.NET_MENU_STATUS
+class NetMenuQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_MENU
+
+
+@dataclass
+class NetJacketArtQuery(_MainZoneInstructionMixin, _Query):
+    """Query the jacket art mode; NetJacketArtCommand requests the art itself."""
+
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
 
 
 @dataclass
@@ -225,7 +232,7 @@ class _NetJacketArtCommand(_MainZoneInstructionMixin, _ParamCommand[NetJacketArt
 
 
 class NetJacketArtCommand(_NetJacketArtCommand):
-    """Request the current track's jacket art; QSTN only reports the art mode."""
+    """Set the jacket art mode, or request the current track's jacket art."""
 
     Param: TypeAlias = NetJacketArtParam
 
@@ -372,7 +379,8 @@ type KnownQuery = (
     | NetAlbumQuery
     | NetTimeQuery
     | NetTrackQuery
-    | NetMenuStatusQuery
+    | NetMenuQuery
+    | NetJacketArtQuery
 )
 
 type KnownCommand = (

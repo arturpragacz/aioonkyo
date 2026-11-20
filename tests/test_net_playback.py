@@ -109,7 +109,7 @@ class TestNetPlayback(unittest.TestCase):
         for code, kind in (
             (b"NST", Kind.NET_PLAY_STATUS),
             (b"NTC", Kind.NET_OPERATION),
-            (b"NMS", Kind.NET_MENU_STATUS),
+            (b"NMS", Kind.NET_MENU),
             (b"NTS", Kind.NET_TIME_SEEK),
             (b"NJA", Kind.NET_JACKET_ART),
         ):
@@ -129,7 +129,8 @@ class TestNetPlayback(unittest.TestCase):
             (b"NAL", query.NetAlbum()),
             (b"NTM", query.NetTime()),
             (b"NTR", query.NetTrack()),
-            (b"NMS", query.NetMenuStatus()),
+            (b"NMS", query.NetMenu()),
+            (b"NJA", query.NetJacketArt()),
         ):
             with self.subTest(code=code):
                 frame = EISCPPacket.from_instruction_message(instruction)
@@ -164,12 +165,14 @@ class TestNetPlayback(unittest.TestCase):
             (b"m0000S100", True, True, "00"),
             (b"xxxxxx10a", False, False, "0A"),
             (b"mxxxx?x1E", True, None, "1E"),
+            (b"xxxxxx1xx", False, False, None),
+            (b"m0000S1zz", True, True, None),
             (b"xxxxxS", False, True, None),
             (b"", None, None, None),
         ):
             with self.subTest(parameter=parameter):
                 message = _read(b"NMS" + parameter)
-                self.assertIsInstance(message, status.NetMenuStatus)
+                self.assertIsInstance(message, status.NetMenu)
                 self.assertEqual(
                     (message.track_menu, message.seek, message.service), (track_menu, seek, service)
                 )
@@ -179,6 +182,8 @@ class TestNetPlayback(unittest.TestCase):
         url = b"http://192.0.2.10/album_art.cgi"
         for parameter, image_type, packet, data, expected_url in (
             (b"2-" + url, NetArtType.URL, NetArtPacket.SINGLE, url, url.decode()),
+            (b"2-", NetArtType.URL, NetArtPacket.SINGLE, b"", None),
+            (b"2-N/A", NetArtType.URL, NetArtPacket.SINGLE, b"N/A", None),
             (b"n-", NetArtType.NONE, NetArtPacket.SINGLE, b"", None),
             (b"10FFD8", NetArtType.JPEG, NetArtPacket.START, b"FFD8", None),
             (b"0242", NetArtType.BMP, NetArtPacket.END, b"42", None),
@@ -193,12 +198,20 @@ class TestNetPlayback(unittest.TestCase):
                 )
                 self.assertEqual(message.url, expected_url)
 
-    def test_jacket_art_request(self) -> None:
-        """Ask for the current art itself rather than the art mode."""
-        frame = EISCPPacket.from_instruction_message(
-            command.NetJacketArt(command.NetJacketArt.Param.REQUEST)
-        )
-        self.assertEqual(frame.raw, _packet(b"!1NJAREQ\r\n"))
+    def test_jacket_art_commands(self) -> None:
+        """Set the art mode, or ask for the current art itself."""
+        key = command.NetJacketArt.Param
+        for param, payload in (
+            (key.ENABLE, b"ENA"),
+            (key.DISABLE, b"DIS"),
+            (key.BMP, b"BMP"),
+            (key.LINK, b"LINK"),
+            (key.UP, b"UP"),
+            (key.REQUEST, b"REQ"),
+        ):
+            with self.subTest(param=param):
+                frame = EISCPPacket.from_instruction_message(command.NetJacketArt(param))
+                self.assertEqual(frame.raw, _packet(b"!1NJA" + payload + b"\r\n"))
 
     def test_time_seek(self) -> None:
         """Seek with an hh:mm:ss position and reject positions NTS cannot express."""

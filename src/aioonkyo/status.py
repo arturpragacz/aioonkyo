@@ -489,7 +489,7 @@ def _net_menu_flag(value: bytes, enabled: bytes) -> bool | None:
 class NetMenuStatus(_KnownStatus):
     """Menu status ("maabbstii"): track menu, icons, Time Seek, time display, service."""
 
-    kind: ClassVar[Kind] = Kind.NET_MENU_STATUS
+    kind: ClassVar[Kind] = Kind.NET_MENU
 
     track_menu: bool | None
     seek: bool | None
@@ -501,15 +501,16 @@ class NetMenuStatus(_KnownStatus):
     def parse(cls, code: Code, parameter: bytes) -> Self:
         value = parameter.rstrip(_NET_TERMINATORS)
         service = value[7:9]
-        return cls(
+        self = cls(
             code,
             parameter,
             _net_menu_flag(value[:1], b"m"),
             _net_menu_flag(value[5:6], b"S"),
-            service.decode().upper()
-            if len(service) == 2 and service.isascii() and service.isalnum()
-            else None,
+            # The service id is two hex digits; "xx" means there is none.
+            service.decode().upper() if re.fullmatch(rb"[0-9A-Fa-f]{2}", service) else None,
         )
+        self._validate()
+        return self
 
 
 @dataclass
@@ -532,7 +533,11 @@ class NetJacketArtStatus(_KnownStatus):
         """Return the art URL, if this report carries one."""
         if self.image_type is not NetArtType.URL or self.packet is not NetArtPacket.SINGLE:
             return None
-        return self.data.decode("utf-8", "replace")
+        url = self.data.decode("utf-8", "replace")
+        # Between tracks a receiver can send an empty or placeholder value instead of an address.
+        if not url.startswith(("http://", "https://")):
+            return None
+        return url
 
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
@@ -540,8 +545,11 @@ class NetJacketArtStatus(_KnownStatus):
         image_type = NetArtType.parse_optional(value[:1])
         packet = NetArtPacket.parse_optional(value[1:2])
         if image_type is None or packet is None:
-            return cls(code, parameter, None, None, value)
-        return cls(code, parameter, image_type, packet, value[2:])
+            self = cls(code, parameter, None, None, value)
+        else:
+            self = cls(code, parameter, image_type, packet, value[2:])
+        self._validate()
+        return self
 
 
 @dataclass

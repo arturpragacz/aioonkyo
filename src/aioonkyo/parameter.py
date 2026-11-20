@@ -419,6 +419,11 @@ class NetShuffleMode(_NetModeParam):
 
 
 class NetJacketArtParam(MainZoneParamEnum):
+    ENABLE = "ENA"
+    DISABLE = "DIS"
+    BMP = "BMP"
+    LINK = "LINK"
+    UP = "UP"
     REQUEST = "REQ"
 
 

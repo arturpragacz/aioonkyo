@@ -13,7 +13,7 @@ from ..status import (
     NetAlbumStatus as NetAlbum,
     NetArtistStatus as NetArtist,
     NetJacketArtStatus as NetJacketArt,
-    NetMenuStatus as NetMenuStatus,
+    NetMenuStatus as NetMenu,
     NetPlayStatus as NetPlayStatus,
     NetTimeStatus as NetTime,
     NetTitleStatus as NetTitle,
