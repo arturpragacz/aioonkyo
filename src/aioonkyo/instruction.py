@@ -10,6 +10,8 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetJacketArtParam,
+    NetOperationParam,
     ParamEnum,
     PowerParam,
     ToneParam,
@@ -119,6 +121,48 @@ class DiscoveryQuery(_MainZoneInstructionMixin, _Query):
 
 
 @dataclass
+class NetPlayStatusQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_PLAY_STATUS
+
+
+@dataclass
+class NetTitleQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TITLE
+
+
+@dataclass
+class NetArtistQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_ARTIST
+
+
+@dataclass
+class NetAlbumQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_ALBUM
+
+
+@dataclass
+class NetTimeQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TIME
+
+
+@dataclass
+class NetTrackQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TRACK
+
+
+@dataclass
+class NetMenuQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_MENU
+
+
+@dataclass
+class NetJacketArtQuery(_MainZoneInstructionMixin, _Query):
+    """Query the jacket art mode; NetJacketArtCommand requests the art itself."""
+
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
+
+
+@dataclass
 class _ParamCommand[ParamT: ParamEnum](_Instruction):
     kind: ClassVar[Kind]
 
@@ -171,6 +215,59 @@ class _TVOperationCommand(_MainZoneInstructionMixin, _ParamCommand[TVOperationPa
 class TVOperationCommand(_TVOperationCommand):
     # TypeAlias doesn't work in dataclasses
     Param: TypeAlias = TVOperationParam
+
+
+@dataclass
+class _NetOperationCommand(_MainZoneInstructionMixin, _ParamCommand[NetOperationParam]):
+    kind: ClassVar[Kind] = Kind.NET_OPERATION
+
+
+class NetOperationCommand(_NetOperationCommand):
+    Param: TypeAlias = NetOperationParam
+
+
+@dataclass
+class _NetJacketArtCommand(_MainZoneInstructionMixin, _ParamCommand[NetJacketArtParam]):
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
+
+
+class NetJacketArtCommand(_NetJacketArtCommand):
+    """Set the jacket art mode, or request the current track's jacket art."""
+
+    Param: TypeAlias = NetJacketArtParam
+
+
+# NTS takes hh:mm:ss, or mm:ss on players without an hours field.
+_NET_TIME_SEEK_MAX = 99 * 3600 + 59 * 60 + 59
+_NET_TIME_SEEK_MAX_SHORT = 99 * 60 + 59
+
+
+@dataclass
+class NetTimeSeekCommand(_MainZoneInstructionMixin, _Instruction):
+    """Seek the network player, in whole seconds.
+
+    Receivers accept it only while NMS reports Time Seek as enabled. The position is sent as
+    hh:mm:ss; pass `hours=False` for players that use the older mm:ss form, up to 99:59.
+    """
+
+    kind: ClassVar[Kind] = Kind.NET_TIME_SEEK
+
+    position: int
+    hours: bool = field(default=True, kw_only=True)
+
+    parameter: bytes = field(init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        maximum = _NET_TIME_SEEK_MAX if self.hours else _NET_TIME_SEEK_MAX_SHORT
+        if not 0 <= self.position <= maximum:
+            raise ValueError(f"Position {self.position} out of range for {self.__class__.__name__}")
+        minutes, seconds = divmod(self.position, 60)
+        if self.hours:
+            hours, minutes = divmod(minutes, 60)
+            self.parameter = f"{hours:02}:{minutes:02}:{seconds:02}".encode()
+        else:
+            self.parameter = f"{minutes:02}:{seconds:02}".encode()
+        self._validate()
 
 
 @dataclass
@@ -283,6 +380,14 @@ type KnownQuery = (
     | FLDisplayQuery
     | TemperatureQuery
     | DiscoveryQuery
+    | NetPlayStatusQuery
+    | NetTitleQuery
+    | NetArtistQuery
+    | NetAlbumQuery
+    | NetTimeQuery
+    | NetTrackQuery
+    | NetMenuQuery
+    | NetJacketArtQuery
 )
 
 type KnownCommand = (
@@ -292,6 +397,9 @@ type KnownCommand = (
     | ListeningModeCommand
     | HDMIOutputCommand
     | TVOperationCommand
+    | NetOperationCommand
+    | NetJacketArtCommand
+    | NetTimeSeekCommand
     | VolumeCommand
     | TunerPresetCommand
     | ToneCommand

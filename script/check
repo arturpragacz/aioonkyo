@@ -2,9 +2,10 @@
 
 __dir="$(cd "$(dirname "$0")" && pwd)"
 
-set -x
+set -ex
 
 python --version
 
 ${__dir}/lint
 mypy
+python -m unittest discover

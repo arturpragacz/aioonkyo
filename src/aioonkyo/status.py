@@ -14,6 +14,11 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetArtPacket,
+    NetArtType,
+    NetPlaybackState,
+    NetRepeatMode,
+    NetShuffleMode,
     ParamEnum,
     ParamNumeric,
     PowerParam,
@@ -366,6 +371,189 @@ class DiscoveryStatus(_KnownStatus):
         return self
 
 
+# Some NET/USB players include additional terminators inside the eISCP frame.
+_NET_TERMINATORS = b"\x1a\r\n\x00"
+
+
+@dataclass
+class NetPlayStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_PLAY_STATUS
+
+    playback: NetPlaybackState | None
+    repeat: NetRepeatMode | None
+    shuffle: NetShuffleMode | None
+
+    __match_args__ = ("playback", "repeat", "shuffle")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        self = cls(
+            code,
+            parameter,
+            NetPlaybackState.parse_optional(value[:1]),
+            NetRepeatMode.parse_optional(value[1:2]),
+            NetShuffleMode.parse_optional(value[2:3]),
+        )
+        self._validate()
+        return self
+
+
+@dataclass
+class _NetTextStatus(_KnownStatus):
+    text: str
+
+    __match_args__ = ("text",)
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        text = parameter.rstrip(_NET_TERMINATORS).decode("utf-8", "replace")
+        self = cls(code, parameter, text)
+        self._validate()
+        return self
+
+
+class NetTitleStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_TITLE
+
+
+class NetArtistStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_ARTIST
+
+
+class NetAlbumStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_ALBUM
+
+
+def _net_clock(value: bytes) -> int | None:
+    """Read mm:ss or hh:mm:ss, allowing an unavailable duration on live streams."""
+    match = re.fullmatch(rb"(?:(\d{1,2}):)?(\d{1,2}):([0-5]\d)", value)
+    if match is None:
+        return None
+    hours, minutes, seconds = match.groups()
+    if hours is not None and int(minutes) >= 60:
+        return None
+    return int(hours or 0) * 3600 + int(minutes) * 60 + int(seconds)
+
+
+@dataclass
+class NetTimeStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_TIME
+
+    position: int | None
+    duration: int | None
+
+    __match_args__ = ("position", "duration")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        position, _, duration = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
+        self = cls(code, parameter, _net_clock(position), _net_clock(duration))
+        self._validate()
+        return self
+
+
+def _net_track_number(value: bytes) -> int | None:
+    """Read a track number or an unavailable field represented by dashes."""
+    if not value.isdigit() or len(value) > 4:
+        return None
+    return int(value)
+
+
+@dataclass
+class NetTrackStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_TRACK
+
+    current: int | None
+    total: int | None
+
+    __match_args__ = ("current", "total")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        current, _, total = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
+        self = cls(code, parameter, _net_track_number(current), _net_track_number(total))
+        self._validate()
+        return self
+
+
+def _net_menu_flag(value: bytes, enabled: bytes) -> bool | None:
+    """Read one NMS flag; the letter case differs between the protocol document and receivers."""
+    value = value.upper()
+    if value == enabled:
+        return True
+    if value == b"X":
+        return False
+    return None
+
+
+@dataclass
+class NetMenuStatus(_KnownStatus):
+    """Menu status ("maabbstii"): track menu, icons, Time Seek, time display, service."""
+
+    kind: ClassVar[Kind] = Kind.NET_MENU
+
+    track_menu: bool | None
+    seek: bool | None
+    service: str | None
+
+    __match_args__ = ("track_menu", "seek", "service")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        service = value[7:9]
+        self = cls(
+            code,
+            parameter,
+            _net_menu_flag(value[:1], b"M"),
+            _net_menu_flag(value[5:6], b"S"),
+            # The service id is two hex digits; "xx" means there is none.
+            service.decode().upper() if re.fullmatch(rb"[0-9A-Fa-f]{2}", service) else None,
+        )
+        self._validate()
+        return self
+
+
+@dataclass
+class NetJacketArtStatus(_KnownStatus):
+    """Jacket art: a URL, a hex-encoded image packet, or no art for this track.
+
+    Unrecognized reports, such as the art mode answering QSTN, keep their whole value in `data`.
+    """
+
+    kind: ClassVar[Kind] = Kind.NET_JACKET_ART
+
+    image_type: NetArtType | None
+    packet: NetArtPacket | None
+    data: bytes
+
+    __match_args__ = ("image_type", "packet", "data")
+
+    @property
+    def url(self) -> str | None:
+        """Return the art URL, if this report carries one."""
+        if self.image_type is not NetArtType.URL or self.packet is not NetArtPacket.SINGLE:
+            return None
+        url = self.data.decode("utf-8", "replace")
+        # Between tracks a receiver can send an empty or placeholder value instead of an address.
+        if not url.startswith(("http://", "https://")):
+            return None
+        return url
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        image_type = NetArtType.parse_optional(value[:1])
+        packet = NetArtPacket.parse_optional(value[1:2])
+        if image_type is None or packet is None:
+            self = cls(code, parameter, None, None, value)
+        else:
+            self = cls(code, parameter, image_type, packet, value[2:])
+        self._validate()
+        return self
+
+
 @dataclass
 class NotAvailableStatus(_KnownStatus):
     kind: Kind = field()
@@ -394,6 +582,14 @@ type ValidStatus = (
     | VideoInformationStatus
     | FLDisplayStatus
     | DiscoveryStatus
+    | NetPlayStatus
+    | NetTitleStatus
+    | NetArtistStatus
+    | NetAlbumStatus
+    | NetTimeStatus
+    | NetTrackStatus
+    | NetMenuStatus
+    | NetJacketArtStatus
 )
 
 type KnownStatus = ValidStatus | NotAvailableStatus
