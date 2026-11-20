@@ -127,7 +127,7 @@ class TestNetPlayback(unittest.TestCase):
                 self.assertEqual(frame.raw, _packet(b"!1" + code + b"QSTN\r\n"))
 
     def test_keys(self) -> None:
-        """Transport and mode controls send a single key press."""
+        """Each remote-control key sends a single key press."""
         key = command.NetOperation.Param
         for param, payload in (
             (key.PLAY, b"PLAY"),
@@ -137,6 +137,13 @@ class TestNetPlayback(unittest.TestCase):
             (key.PREVIOUS, b"TRDN"),
             (key.REPEAT, b"REPEAT"),
             (key.RANDOM, b"RANDOM"),
+            (key.PLAY_PAUSE, b"P/P"),
+            (key.FAST_FORWARD, b"FF"),
+            (key.REWIND, b"REW"),
+            (key.REPEAT_SHUFFLE, b"REP/SHF"),
+            (key.NUM_0, b"0"),
+            (key.CHUP, b"CHUP"),
+            (key.F2, b"F2"),
         ):
             with self.subTest(param=param):
                 frame = EISCPPacket.from_instruction_message(command.NetOperation(param))

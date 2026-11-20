@@ -342,6 +342,45 @@ class NetOperationParam(MainZoneParamEnum):
     PREVIOUS = "TRDN"
     REPEAT = "REPEAT"
     RANDOM = "RANDOM"
+    PLAY_PAUSE = "P/P"
+    FAST_FORWARD = "FF"
+    REWIND = "REW"
+    REPEAT_SHUFFLE = "REP/SHF"
+    DISPLAY = "DISPLAY"
+    ALBUM = "ALBUM"
+    ARTIST = "ARTIST"
+    GENRE = "GENRE"
+    PLAYLIST = "PLAYLIST"
+    RIGHT = "RIGHT"
+    LEFT = "LEFT"
+    UP = "UP"
+    DOWN = "DOWN"
+    SELECT = "SELECT"
+    NUM_0 = "0", ParamEnumSettings("0")
+    NUM_1 = "1", ParamEnumSettings("1")
+    NUM_2 = "2", ParamEnumSettings("2")
+    NUM_3 = "3", ParamEnumSettings("3")
+    NUM_4 = "4", ParamEnumSettings("4")
+    NUM_5 = "5", ParamEnumSettings("5")
+    NUM_6 = "6", ParamEnumSettings("6")
+    NUM_7 = "7", ParamEnumSettings("7")
+    NUM_8 = "8", ParamEnumSettings("8")
+    NUM_9 = "9", ParamEnumSettings("9")
+    DELETE = "DELETE"
+    CAPS = "CAPS"
+    LOCATION = "LOCATION"
+    LANGUAGE = "LANGUAGE"
+    SETUP = "SETUP"
+    RETURN = "RETURN"
+    CHUP = "CHUP", ParamEnumSettings("CHANNEL UP")
+    CHDN = "CHDN", ParamEnumSettings("CHANNEL DOWN")
+    MENU = "MENU"
+    TOP = "TOP"
+    MODE = "MODE"
+    LIST = "LIST"
+    MEMORY = "MEMORY"
+    F1 = "F1"
+    F2 = "F2"
 
 
 class _NetModeParam(MainZoneParamEnum):
