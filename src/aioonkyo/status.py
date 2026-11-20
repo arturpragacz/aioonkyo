@@ -14,6 +14,9 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetPlaybackState,
+    NetRepeatMode,
+    NetShuffleMode,
     ParamEnum,
     ParamNumeric,
     PowerParam,
@@ -366,6 +369,112 @@ class DiscoveryStatus(_KnownStatus):
         return self
 
 
+# Some NET/USB players include additional terminators inside the eISCP frame.
+_NET_TERMINATORS = b"\x1a\r\n\x00"
+
+
+@dataclass
+class NetPlayStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_PLAY_STATUS
+
+    playback: NetPlaybackState | None
+    repeat: NetRepeatMode | None
+    shuffle: NetShuffleMode | None
+
+    __match_args__ = ("playback", "repeat", "shuffle")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        value = parameter.rstrip(_NET_TERMINATORS)
+        self = cls(
+            code,
+            parameter,
+            NetPlaybackState.parse_optional(value[:1]),
+            NetRepeatMode.parse_optional(value[1:2]),
+            NetShuffleMode.parse_optional(value[2:3]),
+        )
+        self._validate()
+        return self
+
+
+@dataclass
+class _NetTextStatus(_KnownStatus):
+    text: str
+
+    __match_args__ = ("text",)
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        text = parameter.rstrip(_NET_TERMINATORS).decode("utf-8", "replace")
+        self = cls(code, parameter, text)
+        self._validate()
+        return self
+
+
+class NetTitleStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_TITLE
+
+
+class NetArtistStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_ARTIST
+
+
+class NetAlbumStatus(_NetTextStatus):
+    kind: ClassVar[Kind] = Kind.NET_ALBUM
+
+
+def _net_clock(value: bytes) -> int | None:
+    """Read mm:ss or hh:mm:ss, allowing an unavailable duration on live streams."""
+    match = re.fullmatch(rb"(?:(\d{1,2}):)?(\d{1,2}):([0-5]\d)", value)
+    if match is None:
+        return None
+    hours, minutes, seconds = match.groups()
+    if hours is not None and int(minutes) >= 60:
+        return None
+    return int(hours or 0) * 3600 + int(minutes) * 60 + int(seconds)
+
+
+@dataclass
+class NetTimeStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_TIME
+
+    position: int | None
+    duration: int | None
+
+    __match_args__ = ("position", "duration")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        position, _, duration = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
+        self = cls(code, parameter, _net_clock(position), _net_clock(duration))
+        self._validate()
+        return self
+
+
+def _net_track_number(value: bytes) -> int | None:
+    """Read a track number or an unavailable field represented by dashes."""
+    if not value.isdigit() or len(value) > 4:
+        return None
+    return int(value)
+
+
+@dataclass
+class NetTrackStatus(_KnownStatus):
+    kind: ClassVar[Kind] = Kind.NET_TRACK
+
+    current: int | None
+    total: int | None
+
+    __match_args__ = ("current", "total")
+
+    @classmethod
+    def parse(cls, code: Code, parameter: bytes) -> Self:
+        current, _, total = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
+        self = cls(code, parameter, _net_track_number(current), _net_track_number(total))
+        self._validate()
+        return self
+
+
 @dataclass
 class NotAvailableStatus(_KnownStatus):
     kind: Kind = field()
@@ -394,6 +503,12 @@ type ValidStatus = (
     | VideoInformationStatus
     | FLDisplayStatus
     | DiscoveryStatus
+    | NetPlayStatus
+    | NetTitleStatus
+    | NetArtistStatus
+    | NetAlbumStatus
+    | NetTimeStatus
+    | NetTrackStatus
 )
 
 type KnownStatus = ValidStatus | NotAvailableStatus

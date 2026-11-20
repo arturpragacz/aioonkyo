@@ -6,6 +6,7 @@ from ...instruction import (
     InputSourceCommand as InputSource,
     ListeningModeCommand as ListeningMode,
     MutingCommand as Muting,
+    NetOperationCommand as NetOperation,
     PowerCommand as Power,
     ToneCommand as Tone,
     TunerPresetCommand as TunerPreset,

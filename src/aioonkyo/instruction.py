@@ -10,6 +10,7 @@ from .parameter import (
     InputSourceParam,
     ListeningModeParam,
     MutingParam,
+    NetOperationParam,
     ParamEnum,
     PowerParam,
     ToneParam,
@@ -119,6 +120,36 @@ class DiscoveryQuery(_MainZoneInstructionMixin, _Query):
 
 
 @dataclass
+class NetPlayStatusQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_PLAY_STATUS
+
+
+@dataclass
+class NetTitleQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TITLE
+
+
+@dataclass
+class NetArtistQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_ARTIST
+
+
+@dataclass
+class NetAlbumQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_ALBUM
+
+
+@dataclass
+class NetTimeQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TIME
+
+
+@dataclass
+class NetTrackQuery(_MainZoneInstructionMixin, _Query):
+    kind: ClassVar[Kind] = Kind.NET_TRACK
+
+
+@dataclass
 class _ParamCommand[ParamT: ParamEnum](_Instruction):
     kind: ClassVar[Kind]
 
@@ -171,6 +202,15 @@ class _TVOperationCommand(_MainZoneInstructionMixin, _ParamCommand[TVOperationPa
 class TVOperationCommand(_TVOperationCommand):
     # TypeAlias doesn't work in dataclasses
     Param: TypeAlias = TVOperationParam
+
+
+@dataclass
+class _NetOperationCommand(_MainZoneInstructionMixin, _ParamCommand[NetOperationParam]):
+    kind: ClassVar[Kind] = Kind.NET_OPERATION
+
+
+class NetOperationCommand(_NetOperationCommand):
+    Param: TypeAlias = NetOperationParam
 
 
 @dataclass
@@ -283,6 +323,12 @@ type KnownQuery = (
     | FLDisplayQuery
     | TemperatureQuery
     | DiscoveryQuery
+    | NetPlayStatusQuery
+    | NetTitleQuery
+    | NetArtistQuery
+    | NetAlbumQuery
+    | NetTimeQuery
+    | NetTrackQuery
 )
 
 type KnownCommand = (
@@ -292,6 +338,7 @@ type KnownCommand = (
     | ListeningModeCommand
     | HDMIOutputCommand
     | TVOperationCommand
+    | NetOperationCommand
     | VolumeCommand
     | TunerPresetCommand
     | ToneCommand

@@ -287,6 +287,9 @@ class ISCPStatusData(ISCPData[Status]):
             return RawStatus(raw_code, parameter)
         if parameter == b"N/A":
             return NotAvailableStatus.parse(code, parameter)
+        # NTC is a remote-control key press. Receivers may echo vendor-specific keys.
+        if code is Code.NTC:
+            return RawStatus(raw_code, parameter)
         status_cls = status_classes.get(code.kind)
         if status_cls is None:
             raw_status = RawStatus(raw_code, parameter)
