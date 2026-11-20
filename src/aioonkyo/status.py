@@ -478,9 +478,11 @@ class NetTrackStatus(_KnownStatus):
 
 
 def _net_menu_flag(value: bytes, enabled: bytes) -> bool | None:
+    """Read one NMS flag; the letter case differs between the protocol document and receivers."""
+    value = value.upper()
     if value == enabled:
         return True
-    if value == b"x":
+    if value == b"X":
         return False
     return None
 
@@ -504,7 +506,7 @@ class NetMenuStatus(_KnownStatus):
         self = cls(
             code,
             parameter,
-            _net_menu_flag(value[:1], b"m"),
+            _net_menu_flag(value[:1], b"M"),
             _net_menu_flag(value[5:6], b"S"),
             # The service id is two hex digits; "xx" means there is none.
             service.decode().upper() if re.fullmatch(rb"[0-9A-Fa-f]{2}", service) else None,

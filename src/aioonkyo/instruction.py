@@ -237,29 +237,36 @@ class NetJacketArtCommand(_NetJacketArtCommand):
     Param: TypeAlias = NetJacketArtParam
 
 
-# NTS takes hh:mm:ss, so the longest position it can express is 99:59:59.
+# NTS takes hh:mm:ss, or mm:ss on players without an hours field.
 _NET_TIME_SEEK_MAX = 99 * 3600 + 59 * 60 + 59
+_NET_TIME_SEEK_MAX_SHORT = 99 * 60 + 59
 
 
 @dataclass
 class NetTimeSeekCommand(_MainZoneInstructionMixin, _Instruction):
     """Seek the network player, in whole seconds.
 
-    Receivers accept it only while NMS reports Time Seek as enabled.
+    Receivers accept it only while NMS reports Time Seek as enabled. The position is sent as
+    hh:mm:ss; pass `hours=False` for players that use the older mm:ss form, up to 99:59.
     """
 
     kind: ClassVar[Kind] = Kind.NET_TIME_SEEK
 
     position: int
+    hours: bool = field(default=True, kw_only=True)
 
     parameter: bytes = field(init=False, repr=False)
 
     def __post_init__(self) -> None:
-        if not 0 <= self.position <= _NET_TIME_SEEK_MAX:
+        maximum = _NET_TIME_SEEK_MAX if self.hours else _NET_TIME_SEEK_MAX_SHORT
+        if not 0 <= self.position <= maximum:
             raise ValueError(f"Position {self.position} out of range for {self.__class__.__name__}")
         minutes, seconds = divmod(self.position, 60)
-        hours, minutes = divmod(minutes, 60)
-        self.parameter = f"{hours:02}:{minutes:02}:{seconds:02}".encode()
+        if self.hours:
+            hours, minutes = divmod(minutes, 60)
+            self.parameter = f"{hours:02}:{minutes:02}:{seconds:02}".encode()
+        else:
+            self.parameter = f"{minutes:02}:{seconds:02}".encode()
         self._validate()
 
 

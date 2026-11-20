@@ -162,7 +162,9 @@ class TestNetPlayback(unittest.TestCase):
     def test_menu(self) -> None:
         """Read the Time Seek flag and service id out of the menu status."""
         for parameter, track_menu, seek, service in (
+            (b"M0000S100", True, True, "00"),
             (b"m0000S100", True, True, "00"),
+            (b"XXXXXX1F0", False, False, "F0"),
             (b"xxxxxx10a", False, False, "0A"),
             (b"mxxxx?x1E", True, None, "1E"),
             (b"xxxxxx1xx", False, False, None),
@@ -222,3 +224,15 @@ class TestNetPlayback(unittest.TestCase):
         for position in (-1, 360000):
             with self.subTest(position=position), self.assertRaises(ValueError):
                 command.NetTimeSeek(position)
+
+    def test_time_seek_without_hours(self) -> None:
+        """Seek with the older mm:ss position, which counts minutes up to 99."""
+        for position, payload in ((0, b"00:00"), (125, b"02:05"), (5999, b"99:59")):
+            with self.subTest(position=position):
+                frame = EISCPPacket.from_instruction_message(
+                    command.NetTimeSeek(position, hours=False)
+                )
+                self.assertEqual(frame.raw, _packet(b"!1NTS" + payload + b"\r\n"))
+        for position in (-1, 6000):
+            with self.subTest(position=position), self.assertRaises(ValueError):
+                command.NetTimeSeek(position, hours=False)

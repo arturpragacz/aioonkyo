@@ -161,8 +161,11 @@ class Code(CodeBase):
     NTR = Kind.NET_TRACK, Zone.MAIN
     # NET OPERATION
     NTC = Kind.NET_OPERATION, Zone.MAIN
+    # NET MENU
     NMS = Kind.NET_MENU, Zone.MAIN
+    # NET TIME SEEK
     NTS = Kind.NET_TIME_SEEK, Zone.MAIN
+    # NET JACKET ART
     NJA = Kind.NET_JACKET_ART, Zone.MAIN
 
 
