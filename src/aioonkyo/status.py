@@ -386,13 +386,15 @@ class NetPlayStatus(_KnownStatus):
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
         value = parameter.rstrip(_NET_TERMINATORS)
-        return cls(
+        self = cls(
             code,
             parameter,
             NetPlaybackState.parse_optional(value[:1]),
             NetRepeatMode.parse_optional(value[1:2]),
             NetShuffleMode.parse_optional(value[2:3]),
         )
+        self._validate()
+        return self
 
 
 @dataclass
@@ -403,7 +405,10 @@ class _NetTextStatus(_KnownStatus):
 
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
-        return cls(code, parameter, parameter.rstrip(_NET_TERMINATORS).decode("utf-8", "replace"))
+        text = parameter.rstrip(_NET_TERMINATORS).decode("utf-8", "replace")
+        self = cls(code, parameter, text)
+        self._validate()
+        return self
 
 
 class NetTitleStatus(_NetTextStatus):
@@ -441,7 +446,9 @@ class NetTimeStatus(_KnownStatus):
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
         position, _, duration = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
-        return cls(code, parameter, _net_clock(position), _net_clock(duration))
+        self = cls(code, parameter, _net_clock(position), _net_clock(duration))
+        self._validate()
+        return self
 
 
 def _net_track_number(value: bytes) -> int | None:
@@ -463,7 +470,9 @@ class NetTrackStatus(_KnownStatus):
     @classmethod
     def parse(cls, code: Code, parameter: bytes) -> Self:
         current, _, total = parameter.rstrip(_NET_TERMINATORS).partition(b"/")
-        return cls(code, parameter, _net_track_number(current), _net_track_number(total))
+        self = cls(code, parameter, _net_track_number(current), _net_track_number(total))
+        self._validate()
+        return self
 
 
 @dataclass
